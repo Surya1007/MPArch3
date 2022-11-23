@@ -2,7 +2,7 @@ CC = g++
 OPT = -O3
 #OPT = -g
 WARN = -Wall
-CFLAGS = $(OPT) $(WARN) $(INC) $(LIB)
+CFLAGS = '-std=c++11' $(OPT) $(WARN) $(INC) $(LIB)
 
 # List all your .cc/.cpp files here (source files, excluding header files)
 SIM_SRC = sim_proc.cc
