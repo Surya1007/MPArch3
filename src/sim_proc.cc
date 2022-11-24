@@ -32,6 +32,7 @@ int main (int argc, char* argv[])
     params.iq_size      = strtoul(argv[2], NULL, 10);
     params.width        = strtoul(argv[3], NULL, 10);
     trace_file          = argv[4];
+    
     printf("rob_size:%lu "
             "iq_size:%lu "
             "width:%lu "
@@ -45,6 +46,23 @@ int main (int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
     
+
+
+    /* Initializing the basic structure of the microprocessor */
+    Rename_Map_Table_struct Rename_Map_Table;
+    IssueQueue_Operator IQ_controller(params.iq_size);
+    ROB_Operator ROB_controller(params.rob_size);
+
+    Pipeline_Register_Operator DE(params.width);
+    Pipeline_Register_Operator RN(params.width);
+    Pipeline_Register_Operator RR(params.width);
+    Pipeline_Register_Operator DI(params.width);
+    Pipeline_Register_Operator EX(params.width * 5);
+    Pipeline_Register_Operator WB(params.width * 5);
+
+
+
+    /* Completed initializing the basic structure of the microprocessor */
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // The following loop just tests reading the trace and echoing it back to the screen.
@@ -56,6 +74,21 @@ int main (int argc, char* argv[])
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     while(fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
         printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+
+
+
+    /** Final Output **/
+    printf("\n# === Simulator Command =========");
+    printf("\n# ./sim %lu %lu %lu %s", params.rob_size, params.iq_size, params.width, trace_file);
+    printf("\n# === Processor Configuration ===");
+    printf("\n# ROB_SIZE = %lu", params.rob_size);
+    printf("\n# IQ_SIZE  = %lu", params.iq_size);
+    printf("\n# WIDTH    = %lu", params.width);
+    printf("\n# === Simulation Results ========");
+    printf("\n# Dynamic Instruction Count    = ");
+    printf("\n# Cycles                       = ");
+    printf("\n# Instructions Per Cycle (IPC) = ");
+    printf("\n");
 
     return 0;
 }
