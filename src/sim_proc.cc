@@ -49,20 +49,34 @@ int main (int argc, char* argv[])
 
 
     /* Initializing the basic structure of the microprocessor */
-    Rename_Map_Table_struct Rename_Map_Table;
+    Rename_Map_Table_struct Rename_Map_Table(67);
     IssueQueue_Operator IQ_controller(params.iq_size);
     ROB_Operator ROB_controller(params.rob_size);
 
+    Pipeline_Register_Operator FE(params.width);
     Pipeline_Register_Operator DE(params.width);
     Pipeline_Register_Operator RN(params.width);
     Pipeline_Register_Operator RR(params.width);
     Pipeline_Register_Operator DI(params.width);
+    Pipeline_Register_Operator IS(params.width);
     Pipeline_Register_Operator EX(params.width * 5);
     Pipeline_Register_Operator WB(params.width * 5);
-
-
-
+    Pipeline_Register_Operator RT(params.width);
     /* Completed initializing the basic structure of the microprocessor */
+
+
+
+
+
+    /* Initialization simulation environment */
+    unsigned int sim_time = 0;
+    bool continue_sim = 1, fetched_all_instructions = 0, empty_pipeline = 1;
+    /* Completed Initialization simulation environment */
+
+
+
+
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // The following loop just tests reading the trace and echoing it back to the screen.
@@ -72,12 +86,78 @@ int main (int argc, char* argv[])
     // inside the Fetch() function.
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    while(fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
-        printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+    do{
+        /******************************************* Retire Stage ******************************************/
+        
+        /**************************************** End Retire Stage *****************************************/
+
+
+        /***************************************** Writeback Stage *****************************************/
+
+        /************************************** End Writeback Stage ****************************************/
+
+
+        /****************************************** Execute Stage ******************************************/
+
+        /*************************************** End Execute Stage *****************************************/
+
+
+        /******************************************** Issue Stage ******************************************/
+
+        /***************************************** End Issue Stage *****************************************/
+
+
+        /****************************************** Dispatch Stage *****************************************/
+
+        /************************************** End Dispatch Stage *****************************************/
+
+
+        /****************************************** Regread Stage ******************************************/
+
+        /*************************************** End Regread Stage *****************************************/
+
+
+        /******************************************* Rename Stage ******************************************/
+
+        /**************************************** End Rename Stage *****************************************/
+
+
+        /******************************************* Decode Stage ******************************************/
+
+        /**************************************** End Decode Stage *****************************************/
+
+
+        /******************************************* Fetch Stage *******************************************/
+        if (fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
+        {
+            printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+            // Need to add to the fetch stage
+        }
+        else
+        {
+            fetched_all_instructions = 1;
+        }
+        /**************************************** End Fetch Stage ******************************************/
 
 
 
-    /** Final Output **/
+
+
+        /************************************ Advance cycle calculation ************************************/
+        // Increments the simulation time
+        ++sim_time;
+        // Check if simulation is completed
+        if ((empty_pipeline == 1) && (fetched_all_instructions == 1))
+        {
+            continue_sim = 0;
+        }
+        /********************************* End Advance cycle calculation ***********************************/
+    }while(continue_sim);
+    
+
+
+
+    /******************************************* Final Output *********************************************/
     printf("\n# === Simulator Command =========");
     printf("\n# ./sim %lu %lu %lu %s", params.rob_size, params.iq_size, params.width, trace_file);
     printf("\n# === Processor Configuration ===");
@@ -89,6 +169,6 @@ int main (int argc, char* argv[])
     printf("\n# Cycles                       = ");
     printf("\n# Instructions Per Cycle (IPC) = ");
     printf("\n");
-
+    /**************************************** Final Output Ends *******************************************/
     return 0;
 }

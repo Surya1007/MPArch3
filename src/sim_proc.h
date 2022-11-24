@@ -16,15 +16,68 @@ typedef struct proc_params{
 
 
 
-/********************************* Rename Map Table *********************************
+/************************** Individual Rename Map Table Struct **********************
+* Structure for individual element in Rename Map Table                              *
+************************* End Rename Map Table Struct ******************************/
+typedef struct Individual_Rename_Map_Table_struct{
+    unsigned int rob_tag;
+    bool valid;
+}Individual_Rename_Map_Table_struct;
+
+
+
+
+
+/************************** Rename Map Table Struct *********************************
 * Structure for Rename Map Table                                                    *
 * The index of arrays represents the register number                                *
-******************************** End Rename Map Table ******************************/
-typedef struct Rename_Map_Table_struct{
-    unsigned int rob_tags[67];
-    bool valid[67];
-}Rename_Map_Table_struct;
+************************* End Rename Map Table Struct ******************************/
+class Rename_Map_Table_struct
+{
+private:
+    unsigned int total_no_of_registers;
+    std::vector<Individual_Rename_Map_Table_struct> Rename_Map_Table_vector;
+public:
+    Rename_Map_Table_struct(unsigned int no_of_registers)
+    {
+        total_no_of_registers = no_of_registers;
+        Rename_Map_Table_vector = std::vector<Individual_Rename_Map_Table_struct>(no_of_registers);
+    }
 
+
+
+    /*************************** set_rob_tag ********************************************
+    * For a given register register_no                                                  *
+    * Sets the rob tag in the Rename Map Table                                          *
+    * Sets the valid bit to 1                                                           *
+    ********************** End set_rob_tag *********************************************/
+    void set_rob_tag(unsigned int register_no, unsigned int rob_index)
+    {
+        Rename_Map_Table_vector[register_no].valid = 1;
+        Rename_Map_Table_vector[register_no].rob_tag = rob_index;
+    }
+
+
+
+    /************************* reset_rob_tag ********************************************
+    * For a given register register_no                                                  *
+    * Sets the valid bit to 0                                                           *
+    ******************** End reset_rob_tag *********************************************/
+    void reset_rob_tag(unsigned int register_no)
+    {
+        Rename_Map_Table_vector[register_no].valid = 0;
+    }
+
+
+
+    /*************************** get_rob_tag ********************************************
+    * Returns the Individual_Rename_Map_Table_struct for a given register register_no   *
+    ********************** End get_rob_tag *********************************************/
+    Individual_Rename_Map_Table_struct get_rob_tag(unsigned int register_no)
+    {
+        return Rename_Map_Table_vector[register_no];
+    }
+};
 
 
 
@@ -140,13 +193,21 @@ class Pipeline_Register_Operator
 private:
     unsigned int register_width;
     std::vector<Pipeline_Register_Structure> Pipeline_Register;
+    unsigned int entry_time;
+    unsigned int duration;
 public:
     /* Constructor for the class to initialize the pipeline register of size width */ 
     Pipeline_Register_Operator(unsigned int width)
     {
         register_width = width;
         Pipeline_Register = std::vector<Pipeline_Register_Structure>(width);
+        entry_time = 0;
+        duration = 0;
     }
+
+
+
+
 };
 
 #endif
