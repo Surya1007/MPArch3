@@ -49,19 +49,19 @@ int main (int argc, char* argv[])
 
 
     /* Initializing the basic structure of the microprocessor */
-    Rename_Map_Table_struct Rename_Map_Table(67);
+    Rename_Map_Table_Operator Rename_Map_Table(67);
     IssueQueue_Operator IQ_controller(params.iq_size);
     ROB_Operator ROB_controller(params.rob_size);
 
-    Pipeline_Register_Operator FE(params.width);
-    Pipeline_Register_Operator DE(params.width);
-    Pipeline_Register_Operator RN(params.width);
-    Pipeline_Register_Operator RR(params.width);
-    Pipeline_Register_Operator DI(params.width);
-    Pipeline_Register_Operator IS(params.width);
-    Pipeline_Register_Operator EX(params.width * 5);
-    Pipeline_Register_Operator WB(params.width * 5);
-    Pipeline_Register_Operator RT(params.width);
+    Pipeline_Stage_Operator FE(params.width, 0);
+    Pipeline_Stage_Operator DE(params.width, 1);
+    Pipeline_Stage_Operator RN(params.width, 2);
+    Pipeline_Stage_Operator RR(params.width, 3);
+    Pipeline_Stage_Operator DI(params.width, 4);
+    Pipeline_Stage_Operator IS(params.width, 5);
+    Pipeline_Stage_Operator EX(params.width * 5, 6);
+    Pipeline_Stage_Operator WB(params.width * 5, 7);
+    Pipeline_Stage_Operator RT(params.width, 8);
     /* Completed initializing the basic structure of the microprocessor */
 
 
