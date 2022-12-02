@@ -49,7 +49,7 @@ int main (int argc, char* argv[])
 
 
     /* Initializing the basic structure of the microprocessor */
-    Rename_Map_Table_Operator Rename_Map_Table(67);
+    Rename_Map_Table_Operator Rename_Map_Table_controller(67);
     IssueQueue_Operator IQ_controller(params.iq_size);
     ROB_Operator ROB_controller(params.rob_size);
 
@@ -233,20 +233,42 @@ int main (int argc, char* argv[])
 
         /******************************************* Rename Stage ******************************************/
         //std::cout << "RN status: " <<  stall_RN << std::endl;
-        if ((stall_RN != 1) && (RN.Get_Status_of_Pipeline() == params.width)) // Also need to add the condition if rob is full or not
+        if ((stall_RN != 1) && (RN.Get_Status_of_Pipeline() == params.width) && (ROB_controller.Get_Availability_in_ROB() >= params.width)) // Also need to add the condition if rob is full or not
         {
             // Get instruction from previous stage
             to_RN = DE.Get_and_Remove_Instructions_from_Register();
-
-            // Allocate an entry in ROB for instructions in order
-            
-            // Add the renamed source registers to srcs1, srcs2
-            // Add the renamed destination register to dests
-
-            // Add instruction from the pervious stage
+            if (to_RN.size() != 0)
+            {
+                for (unsigned int indexing = 0; indexing < params.width; indexing++)
+                {
+                    // Allocate an entry in ROB for instructions in order
+                    //std::cout << "Hey, " << to_RN[indexing].dest_register << std::endl;
+                    unsigned int dest_pointer = ROB_controller.Add_Instruction_to_ROB(to_RN[indexing].dest_register);
+                    // Add the renamed source registers to srcs1
+                    if (to_RN[indexing].src1_register != -1)
+                    {
+                        Individual_Rename_Map_Table_struct src1 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(to_RN[indexing].src1_register);
+                        if (src1.valid == 1)
+                        {
+                            to_RN[indexing].renamed_src1 = src1.rob_tag;
+                        }
+                    }
+                    // Add the renamed source registers to srcs2
+                    if (to_RN[indexing].src2_register != -1)
+                    {
+                        Individual_Rename_Map_Table_struct src2 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(to_RN[indexing].src2_register);
+                        if (src2.valid == 1)
+                        {
+                            to_RN[indexing].renamed_src2 = src2.rob_tag;
+                        }
+                    }
+                    // Add the renamed destination register to dests
+                    to_RN[indexing].renamed_dest = dest_pointer;
+                    Rename_Map_Table_controller.Set_Rob_Tag_in_RMT(indexing, dest_pointer);
+                }
+            }
+            // Add modified instruction from the pervious stage
             stall_DE = RN.Add_Instructions_to_Register(to_RN, sim_time);
-            // Add the modified register data
-
         }
         else
         {
@@ -289,7 +311,7 @@ int main (int argc, char* argv[])
                     trace_no++;
                     to_FE.push_back(Instruction_Structure{trace_no, pc, op_type, dest, src1, src2, -1, -1, -1, {0, 0}});
                     fetched_count++;
-                    printf("Fetched: %lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+                    printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
                     // Need to add to the fetch stage
                     FE.Add_Instructions_to_Register(to_FE, sim_time);
                     to_FE.clear();

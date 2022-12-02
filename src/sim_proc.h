@@ -55,7 +55,7 @@ typedef struct Instruction_Structure{
 * Structure for individual element in Rename Map Table                              *
 ************************* End Rename Map Table Struct ******************************/
 typedef struct Individual_Rename_Map_Table_struct{
-    unsigned int rob_tag;
+    int rob_tag;
     bool valid;
 }Individual_Rename_Map_Table_struct;
 
@@ -68,11 +68,11 @@ typedef struct Individual_Rename_Map_Table_struct{
 **************************** End Individual Reorder Buffer *************************/
 typedef struct Individual_ROB_struct{
     int value;
+    int destination;
     bool ready;
     bool exception;
     bool misprediction;
-    unsigned int PC;
-    Instruction_Structure instruction;
+    unsigned int PC; // seq_no
 }Individual_ROB_struct;
 
 
@@ -116,7 +116,7 @@ public:
     * Sets the rob tag in the Rename Map Table                                          *
     * Sets the valid bit to 1                                                           *
     ********************** End set_rob_tag *********************************************/
-    void set_rob_tag_in_rmt(unsigned int register_no, unsigned int rob_index)
+    void Set_Rob_Tag_in_RMT(unsigned int register_no, unsigned int rob_index)
     {
         Rename_Map_Table_vector[register_no].valid = 1;
         Rename_Map_Table_vector[register_no].rob_tag = rob_index;
@@ -128,7 +128,7 @@ public:
     * For a given register register_no                                                  *
     * Sets the valid bit to 0                                                           *
     ******************** End reset_rob_tag *********************************************/
-    void reset_rob_tag_in_rmt(unsigned int register_no)
+    void Reset_Rob_Tag_in_RMT(unsigned int register_no)
     {
         Rename_Map_Table_vector[register_no].valid = 0;
     }
@@ -138,7 +138,7 @@ public:
     /*************************** get_rob_tag ********************************************
     * Returns the Individual_Rename_Map_Table_struct for a given register register_no   *
     ********************** End get_rob_tag *********************************************/
-    Individual_Rename_Map_Table_struct get_rob_tag_from_rmt(unsigned int register_no)
+    Individual_Rename_Map_Table_struct Get_Rob_Tag_from_RMT(unsigned int register_no)
     {
         return Rename_Map_Table_vector[register_no];
     }
@@ -287,7 +287,7 @@ private:
     std::vector<Individual_ROB_struct> ROB;
     unsigned int header;
     unsigned int tail;
-    unsigned int no_of_available_elements_in_rob;
+    unsigned long int no_of_available_elements_in_rob;
 public:
     /* Constructor for the class to initialize the reorder buffer of size robsize */ 
     ROB_Operator(unsigned int robsize)
@@ -308,30 +308,19 @@ public:
      *          1: If operation is successfull                                          *
      *          0: ROB is full, not possible to add instructions in this cycle          *
     ******************** End Add Instructions to ROB ***********************************/
-    bool Add_Instructions_to_ROB(std::vector<Instruction_Structure> instructions_to_be_added)
-    {
-        if (instructions_to_be_added.size() < no_of_available_elements_in_rob)
+    unsigned int Add_Instruction_to_ROB(int corresponding_register)
+    {        
+        // If reached the end of rob, set the header to 0
+        if (header >= (rob_size - 1))
         {
-            unsigned int index = 0;
-            while( index < instructions_to_be_added.size() )
-            {
-                ROB[header].instruction = instructions_to_be_added[index];
-                header++;
-                no_of_available_elements_in_rob--;
-                // If reached the end of rob, set the header to 0
-                if (header >= rob_size)
-                {
-                    header -= rob_size;
-                }
-                index++;
-            }
-            return 1;
+            header -= (rob_size - 1);
         }
-        else
-        {
-            return 0;
-        }
+        ROB[header].destination = corresponding_register;
+        no_of_available_elements_in_rob--;
+        header++;
+        return header;
     }
+
 
     /********************* Remove Instruction from ROB **********************************
      * Removes an instruction from ROB                                                  *
@@ -363,21 +352,18 @@ public:
 
 
     /************************** Mark_Instruction_Ready **********************************
-     * Marks an instruction ready in  ROB, using params:                                *
-     * destination register, src1 register, src2 register                               *
+     * Marks an instruction ready in  ROB, using rob_to_be_marked_as_rdy as index:      *
      * Returns:                                                                         *
      *          Nothing                                                                 *
     ********************** End Mark_Instruction_Ready **********************************/
-    void Mark_Instruction_Ready(int rdy_inst_dst, int rdy_instr_src1, int rdy_instr_src2)
+    void Mark_Instruction_Ready(unsigned int rob_to_be_marked_as_rdy)
     {
-        for (unsigned int indexing = 0; indexing < rob_size; indexing++)
-        {
-            if ((ROB[indexing].instruction.renamed_dest == rdy_inst_dst) && (ROB[indexing].instruction.renamed_src1 == rdy_instr_src1) && (ROB[indexing].instruction.renamed_src2 == rdy_instr_src2))
-                {
-                    ROB[indexing].ready = 1;
-                    return;
-                }
-        }
+        ROB[rob_to_be_marked_as_rdy].ready = 1;
+    }
+
+    unsigned long int Get_Availability_in_ROB()
+    {
+        return no_of_available_elements_in_rob;
     }
 };
 
