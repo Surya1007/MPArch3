@@ -35,8 +35,8 @@ typedef struct Timing_Information_Structure{
 
 typedef struct Instruction_Structure{
     unsigned int seq_no;
-    unsigned int PC;
-    unsigned int op_type;
+    unsigned long PC;
+    int op_type;
     int dest_register;
     int src1_register;
     int src2_register;
@@ -67,13 +67,12 @@ typedef struct Individual_Rename_Map_Table_struct{
 * Structure for individual entry in Reorder Buffer                                  *
 **************************** End Individual Reorder Buffer *************************/
 typedef struct Individual_ROB_struct{
-    unsigned int seq_no;
     int value;
-    int destination;
     bool ready;
     bool exception;
     bool misprediction;
     unsigned int PC;
+    Instruction_Structure instruction;
 }Individual_ROB_struct;
 
 
@@ -178,6 +177,7 @@ public:
     *************************** End Add_Instruction_to_IQ ******************************/
     bool Add_Instruction_to_IQ(Instruction_Structure instruction_to_be_added)
     {
+        // Add only when the number of instructions is equal to WIDTH size needs to be checked in the main function
         unsigned int index;
         for(index = 0; index < issue_queue_size; index++)
         {
@@ -191,15 +191,83 @@ public:
                 return 1;
             }
         }
+
         // For checking_printing
         std::cout << "\n Available elements in issue queue are: " << available_iq_elements << std::endl;
         // End checking_printing
         return 0;
     }
 
-    bool check_if_register_is_ready()
+    /******************** Get_Oldest_Instructions_from_IQ *******************************
+    * Gets the oldest instruction from the issue queue                                  *
+    * Inputs:                                                                           *
+    *       size_to_get: Number of instructions to be removed from the IQ               *
+    * Returns:                                                                          *
+    *           Vector of instructions that are ready to execute                        *
+    ***************** End Get_Oldest_Instructions_from_IQ ******************************/
+    std::vector<Instruction_Structure> Get_Oldest_Instructions_from_IQ(unsigned int size_to_get)
     {
+        std::vector<Instruction_Structure> Instructions_to_be_returned;
+        // Can only add instructions of size size_to_get
+        while (Instructions_to_be_returned.size() < size_to_get)
+        {
+            unsigned int mini_seq_no = 100000000;
+            unsigned int index;
+            for(unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
+            {
+                // Searching through valid instructions in the IQ
+                if (issue_queue[indexing].valid_bit == 1)
+                {
+                    // Checking if both the src registers are ready
+                    if ((issue_queue[indexing].src1_ready_bit == 1) && (issue_queue[indexing].src2_ready_bit == 1))
+                    {
+                        // Finding the index of instruction that is the oldest in the IQ
+                        if (issue_queue[indexing].instruction.seq_no < mini_seq_no)
+                        {
+                            index = indexing;
+                            mini_seq_no = issue_queue[indexing].instruction.seq_no;
+                        }
+                    }
+                }
+            }
+            // Just setting the valid bit to 0 works
+            issue_queue[index].valid_bit = 0;
+            // Increment the available elements in IQ for a safe addition to IQ
+            ++available_iq_elements;
+            // Add the instruction to the vector
+            Instructions_to_be_returned.push_back(issue_queue[index].instruction);
+        }
+        return Instructions_to_be_returned;
+    }
 
+
+
+    /***************************** Set_SRC_Ready_Bit ************************************
+    * Gets the oldest instruction from the issue queue                                  *
+    * Inputs:                                                                           *
+    *       src_register: The register that has just been ready                         *
+    * Returns:                                                                          *
+    *           Nothing                                                                 *
+    ************************** End Set_SRC_Ready_Bit ***********************************/
+    void Set_SRC_Ready_Bit(int src_register)
+    {
+        for(unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
+        {
+            // Set the ready bits of only that are valid
+            if (issue_queue[indexing].valid_bit == 1)
+            {
+                // Sets the src1 ready bit if the renamed register is src_register
+                if (issue_queue[indexing].instruction.renamed_src1 == src_register)
+                {
+                    issue_queue[indexing].src1_ready_bit = 1;
+                }
+                // Sets the src2 ready bit if the renamed register is src_register
+                if (issue_queue[indexing].instruction.renamed_src2 == src_register)
+                {
+                    issue_queue[indexing].src2_ready_bit = 1;
+                }
+            }
+        }
     }
 };
 
@@ -218,15 +286,98 @@ private:
     unsigned int rob_size;
     std::vector<Individual_ROB_struct> ROB;
     unsigned int header;
-    unsigned int pointer;
+    unsigned int tail;
+    unsigned int no_of_available_elements_in_rob;
 public:
     /* Constructor for the class to initialize the reorder buffer of size robsize */ 
     ROB_Operator(unsigned int robsize)
     {
         rob_size = robsize;
         ROB = std::vector<Individual_ROB_struct>(robsize);
-        header = 0;
-        pointer = 0;
+        no_of_available_elements_in_rob = robsize;
+        header = 0; // Changed when elements are added into the rob
+        tail = 0; // Changed when elements are removed from rob
+        // Ensure that header and tail is only equal at initialization
+    }
+
+
+
+    /********************** Add Instructions to ROB *************************************
+     * Adds a vector of Instructions of type Instruction_Structure                      *
+     * Returns:                                                                         *
+     *          1: If operation is successfull                                          *
+     *          0: ROB is full, not possible to add instructions in this cycle          *
+    ******************** End Add Instructions to ROB ***********************************/
+    bool Add_Instructions_to_ROB(std::vector<Instruction_Structure> instructions_to_be_added)
+    {
+        if (instructions_to_be_added.size() < no_of_available_elements_in_rob)
+        {
+            unsigned int index = 0;
+            while( index < instructions_to_be_added.size() )
+            {
+                ROB[header].instruction = instructions_to_be_added[index];
+                header++;
+                no_of_available_elements_in_rob--;
+                // If reached the end of rob, set the header to 0
+                if (header >= rob_size)
+                {
+                    header -= rob_size;
+                }
+                index++;
+            }
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    /********************* Remove Instruction from ROB **********************************
+     * Removes an instruction from ROB                                                  *
+     * Returns:                                                                         *
+     *          1: Successfully removed the instruction from ROB                        *
+     *          0: Not possible to remove instruction from ROB                          *
+    ***************** End Remove Instruction from ROB **********************************/
+    bool Remove_Instruction_from_ROB()
+    {
+        if (ROB[tail].ready == 1)
+        {
+            if (no_of_available_elements_in_rob != 0)
+            {
+                ++tail;
+                if (tail >= rob_size)
+                    tail -= rob_size;
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+
+    /************************** Mark_Instruction_Ready **********************************
+     * Marks an instruction ready in  ROB, using params:                                *
+     * destination register, src1 register, src2 register                               *
+     * Returns:                                                                         *
+     *          Nothing                                                                 *
+    ********************** End Mark_Instruction_Ready **********************************/
+    void Mark_Instruction_Ready(int rdy_inst_dst, int rdy_instr_src1, int rdy_instr_src2)
+    {
+        for (unsigned int indexing = 0; indexing < rob_size; indexing++)
+        {
+            if ((ROB[indexing].instruction.renamed_dest == rdy_inst_dst) && (ROB[indexing].instruction.renamed_src1 == rdy_instr_src1) && (ROB[indexing].instruction.renamed_src2 == rdy_instr_src2))
+                {
+                    ROB[indexing].ready = 1;
+                    return;
+                }
+        }
     }
 };
 
@@ -265,34 +416,41 @@ public:
     /**************** Function to add instructions to pipeline register *****************
     * Any number of instructions can be added,                                          *
     * but should be of vector of Instruction_Structure                                  *
+    * single_cycle_instructions is a parameter to set all bits of ready_to_move to 1    *
     * Returns:                                                                          *
-    *           1: Successfully added all instructions to the register                  *
-    *           0: Did not add instructions to register, due to insufficient capacity   *
+    *           0: Successfully added all instructions to the register                  *
+    *           1: Did not add instructions to register, due to insufficient capacity   *
     ************** End Function to add instructions to pipeline register ***************/
-    bool Add_Instructions_to_Register(std::vector<Instruction_Structure> instruction_to_be_added)
+    bool Add_Instructions_to_Register(std::vector<Instruction_Structure> instruction_to_be_added, unsigned int sim_time_at_this_instant)
     {
         // Check if all instructions can be added at once or not
+        //std::cout << "Adding stage: " << instruction_to_be_added.size() << ", " << available_elements_in_stage_count << std::endl;
         if (instruction_to_be_added.size() <= available_elements_in_stage_count)
         {
             unsigned int index_of_element_to_be_added = 0;
-            for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+            for(unsigned int indexing = 0; indexing < instruction_to_be_added.size(); indexing++)
             {
                 // Adding each instruction one by one at the available locations
                 if (available_elements_in_stage[indexing] == 1)
                 {
                     Pipeline_Registers[indexing] = instruction_to_be_added[index_of_element_to_be_added];
+                    Pipeline_Registers[indexing].time_info.start_time_at_each_stage [pipeline_stage] = sim_time_at_this_instant;
                     available_elements_in_stage[indexing] = 0;
-                    available_elements_in_stage_count++;
+                    available_elements_in_stage_count--;
+                    // If register is not in IS, EX, or WB, then the instruction usually stays for 1 clock cycle only
+                    //if ((pipeline_stage != 5) || (pipeline_stage != 6) || (pipeline_stage != 7))
+                    {
+                        ready_to_move[indexing] = 1;
+                    }
                 }
             }
-            return 1;
+            return 0;
         }
         else
         {
-            return 0;
+            return 1;
         }
     }
-
 
 
     /********** Function to get, and remove instructions to pipeline register ***********
@@ -300,7 +458,7 @@ public:
     * Returns:                                                                          *
     *           Vector of Instructions which are ready to be moved to the next stage    *
     ****** End Function to get, and remove instructions to pipeline register ***********/
-    std::vector<Instruction_Structure> Get_Instructions_from_Register()
+    std::vector<Instruction_Structure> Get_and_Remove_Instructions_from_Register()
     {
         std::vector<Instruction_Structure> Registers_to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
@@ -309,7 +467,8 @@ public:
             {
                 Registers_to_be_returned.push_back(Pipeline_Registers[indexing]);
                 available_elements_in_stage[indexing] = 1;
-                available_elements_in_stage_count--;
+                available_elements_in_stage_count++;
+                ready_to_move[indexing] = 0;
             }
         }
         return Registers_to_be_returned;
@@ -317,6 +476,65 @@ public:
 
 
 
+    /***************************** Get_Status_of_Pipeline *******************************
+    * Checks if there are any instructions that are ready to move                       *
+    * Also it makes the required changes in timing information for each instruction     *
+    * Returns:                                                                          *
+    *           1: Elements ready to moved in this stage                                *
+    *           0: No elements in this stage are ready to be moved                      *
+    *************************** End Get_Status_of_Pipeline *****************************/
+    unsigned int Get_Status_of_Pipeline()
+    {
+        if (available_elements_in_stage_count != pipeline_width)
+        {
+            int no_of_elements_that_are_ready_to_move = 0;
+            for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+            {
+                // Timing changes here
+                Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] += 1;
+                if (ready_to_move[indexing] == 1)
+                {
+                    no_of_elements_that_are_ready_to_move++;
+                }
+            }
+            return no_of_elements_that_are_ready_to_move;
+        }
+        else
+        {
+            return pipeline_width;
+        }
+    }
+
+
+
+    /************************ Print_Instructions_in_Register ****************************
+     * Prints the seq no., PC (in hex)                                                  * 
+    ********************** End Print_Instructions_in_Register **************************/
+    void Print_Instructions_in_Register()
+    {
+        for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+        {
+            std::cout << Pipeline_Registers[indexing].seq_no << ", " << std::hex << Pipeline_Registers[indexing].PC << std::dec << std::endl;
+        }
+    }
+
+
+    /************************** Add_Modified_Source_Registers ***************************
+     * Adds the renamed register values                                                 *
+     * Returns:                                                                         *
+     *          Nothing                                                                 *
+    ********************* End Add_Modified_Source_Registers ****************************/
+   void Add_Modified_Source_Registers(std::vector<int> dests, std::vector<int> srcs1, std::vector<int> srcs2)
+    {
+        for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+        {
+            Pipeline_Registers[indexing].renamed_dest = dests[indexing];
+            Pipeline_Registers[indexing].renamed_src1 = srcs1[indexing];
+            Pipeline_Registers[indexing].renamed_src2 = srcs2[indexing];
+        }
+    }
 };
+
+
 
 #endif
