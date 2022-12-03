@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 
+using namespace std;
 
 typedef struct proc_params{
     unsigned long int rob_size;
@@ -44,6 +45,8 @@ typedef struct Instruction_Structure{
     int renamed_dest;
     int renamed_src1;
     int renamed_src2;
+    bool src1_ready_status;
+    bool src2_ready_status;
     Timing_Information_Structure time_info;
 }Instruction_Structure;
 
@@ -104,12 +107,12 @@ class Rename_Map_Table_Operator
 {
 private:
     unsigned int total_no_of_registers;
-    std::vector<Individual_Rename_Map_Table_struct> Rename_Map_Table_vector;
+    vector<Individual_Rename_Map_Table_struct> Rename_Map_Table_vector;
 public:
     Rename_Map_Table_Operator(unsigned int no_of_registers)
     {
         total_no_of_registers = no_of_registers;
-        Rename_Map_Table_vector = std::vector<Individual_Rename_Map_Table_struct>(no_of_registers);
+        Rename_Map_Table_vector = vector<Individual_Rename_Map_Table_struct>(no_of_registers);
     }
 
 
@@ -121,8 +124,16 @@ public:
     ********************** End set_rob_tag *********************************************/
     void Set_Rob_Tag_in_RMT(unsigned int register_no, unsigned int rob_index)
     {
-        Rename_Map_Table_vector[register_no].valid = 1;
-        Rename_Map_Table_vector[register_no].rob_tag = rob_index;
+		if (Rename_Map_Table_vector[register_no].valid == 0)
+		{
+			Rename_Map_Table_vector[register_no].valid = 1;
+			Rename_Map_Table_vector[register_no].rob_tag = rob_index;
+		}
+		else
+		{
+			cout << "Error(RMT): Rename Map Table valid bit is 0, so not possible to add into this entry: " << rob_index << endl;
+			cout << "Ensure correct placement of Reset_Rob_Tag_in_RMT" << endl;
+		}
     }
 
 
@@ -133,7 +144,14 @@ public:
     ******************** End reset_rob_tag *********************************************/
     void Reset_Rob_Tag_in_RMT(unsigned int register_no)
     {
-        Rename_Map_Table_vector[register_no].valid = 0;
+		if (Rename_Map_Table_vector[register_no].valid == 1)
+		{
+			Rename_Map_Table_vector[register_no].valid = 0;
+		}
+		else
+		{
+			cout << "Error(RMT): Rename Map Table valid bit is already 0. Ensure correct placement of Set_Rob_Tag_in_RMT" << endl;
+		}
     }
 
 
@@ -160,22 +178,30 @@ class IssueQueue_Operator
 {
 private:
     unsigned int issue_queue_size;
-    std::vector<Individual_Issue_Queue_struct> issue_queue;
+    vector<Individual_Issue_Queue_struct> issue_queue;
     unsigned int available_iq_elements;
 public:
     /* Constructor for the class to initialize the issue queue of size iq_size */ 
     IssueQueue_Operator(unsigned int iq_size)
     {
         issue_queue_size = iq_size;
-        issue_queue = std::vector<Individual_Issue_Queue_struct>(iq_size);
+        issue_queue = vector<Individual_Issue_Queue_struct>(iq_size);
         available_iq_elements = iq_size;
     }
 
 
+	
+	/*************
+	 Returns the available / free entries in IQ
+	 ****************************************/
     unsigned int Get_No_Available_Elements_in_IQ()
     {
         return available_iq_elements;
     }
+	
+	
+	
+	
     /****************************** Add_Instruction_to_IQ *******************************
     * Adds an instruction to the issue queue                                            *
     * Returns:                                                                          *
@@ -188,6 +214,7 @@ public:
         unsigned int indexing;
         for(indexing = 0; indexing < issue_queue_size; indexing++)
         {
+			// Adds only into empty entries
             if (issue_queue[indexing].valid_bit == 0)
             {
                 issue_queue[indexing].instruction = instruction_to_be_added;
@@ -207,7 +234,7 @@ public:
         }
 
         // For checking_printing
-        std::cout << "\n Available elements in issue queue are: " << available_iq_elements << std::endl;
+        cout << "\n Error(IQ): Issuequeue is full, so please check if there is already any barrier before this: " << available_iq_elements << endl;
         // End checking_printing
         return 0;
     }
@@ -219,62 +246,66 @@ public:
     * Returns:                                                                          *
     *           Vector of instructions that are ready to execute                        *
     ***************** End Get_Oldest_Instructions_from_IQ ******************************/
-    std::vector<Instruction_Structure> Get_Oldest_Instructions_from_IQ(unsigned int size_to_get)
+	Selective_Removal_Struct Query_for_Oldest_Instruction_from_IQ()
     {
-        std::vector<Instruction_Structure> Instructions_to_be_returned;
+		Selective_Removal_Struct Instructions_to_be_returned;
         // Can only add instructions of size size_to_get
-        while (Instructions_to_be_returned.size() < size_to_get)
+		Instructions_to_be_returned.success = 0;
+		unsigned int mini_seq_no = 100000000;
+		int index = -1;
+		// Searching through valid instructions in the IQ
+		for(unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
+		{
+			// Search through the valid bits only
+			if (issue_queue[indexing].valid_bit == 1)
+			{
+				//cout << "Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
+				// Checking if both the src registers are ready
+				if ((issue_queue[indexing].src1_ready_bit == 1) && (issue_queue[indexing].src2_ready_bit == 1))
+				{
+					// Finding the index of instruction that is the oldest in the IQ
+					if (issue_queue[indexing].instruction.seq_no < mini_seq_no)
+					{
+						index = indexing;
+						mini_seq_no = issue_queue[indexing].instruction.seq_no;
+                        Instructions_to_be_returned.success = 1;
+					}
+				}
+			}
+		}
+        // Add instruction to the tobereturned structure
+        if (index != -1)
         {
-            unsigned int mini_seq_no = 100000000;
-            int index = -1;
-            for(unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
-            {
-                // Searching through valid instructions in the IQ
-                if (issue_queue[indexing].valid_bit == 1)
-                {
-                    std::cout << "Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << std::endl;
-                    // Checking if both the src registers are ready 
-                    if ((issue_queue[indexing].src1_ready_bit == 1) && (issue_queue[indexing].src2_ready_bit == 1))
-                    {
-                        // Finding the index of instruction that is the oldest in the IQ
-                        if (issue_queue[indexing].instruction.seq_no < mini_seq_no)
-                        {
-                            index = indexing;
-                            mini_seq_no = issue_queue[indexing].instruction.seq_no;
-                        }
-                    }
-                }
-            }
-            // Need to check if there is only limited number of instructions in the issuequeue
-
-
-            if (index == -1)
-            {
-                break;//std::cout << "Something is wrong" << std::endl;
-            }
-            // Just setting the valid bit to 0 works
-            //issue_queue[index].valid_bit = 0;
-            // Increment the available elements in IQ for a safe addition to IQ
-            //++available_iq_elements;
-            // Add the instruction to the vector
-            Instructions_to_be_returned.push_back(issue_queue[index].instruction);
+    		Instructions_to_be_returned.instruction = issue_queue[index].instruction;
+            cout << "Error(IQ): Check for better barrier possibility" << endl;
         }
         return Instructions_to_be_returned;
     }
 
-    bool Remove_Instruction_from_IQ(unsigned int seq_no)
+    Selective_Removal_Struct Remove_Instruction_from_IQ(unsigned int seq_no)
     {
+        Selective_Removal_Struct Instruction_to_be_returned;
+
         for(unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
         {
-            if (seq_no == issue_queue[indexing].instruction.seq_no)
+            // Loop through valid elements of IQ only
+            if (issue_queue[indexing].valid_bit == 1)
             {
-                // Just setting the valid bit to 0 works
-                issue_queue[indexing].valid_bit = 0;
-                // Increment the available elements in IQ for a safe addition to IQ
-                ++available_iq_elements;
-                return 1;
+                // If the required instruction is found
+                if (seq_no == issue_queue[indexing].instruction.seq_no)
+                {
+                    // Just setting the valid bit to 0 works
+                    issue_queue[indexing].valid_bit = 0;
+                    // Increment the available elements in IQ for a safe addition to IQ
+                    ++available_iq_elements;
+                    
+                    Instruction_to_be_returned.success = 1;
+                    Instruction_to_be_returned.instruction = issue_queue[indexing].instruction;
+                    return 1;
+                }
             }
         }
+        cout << "Error(IQ): Trying to remove instruction that is not part of IQ" << endl;
         return 0;
     }
 
@@ -313,7 +344,7 @@ public:
         {
             if (issue_queue[indexing].valid_bit == 1)
             {
-                std::cout << "Seq no: " << issue_queue[indexing].instruction.seq_no <<  std::endl;
+                cout << "Seq no: " << issue_queue[indexing].instruction.seq_no <<  endl;
             }
         }
     }
@@ -332,7 +363,7 @@ class ROB_Operator
 {
 private:
     unsigned int rob_size;
-    std::vector<Individual_ROB_struct> ROB;
+    vector<Individual_ROB_struct> ROB;
     unsigned int header;
     unsigned int tail;
     unsigned long int no_of_available_elements_in_rob;
@@ -341,7 +372,7 @@ public:
     ROB_Operator(unsigned int robsize)
     {
         rob_size = robsize;
-        ROB = std::vector<Individual_ROB_struct>(robsize);
+        ROB = vector<Individual_ROB_struct>(robsize);
         no_of_available_elements_in_rob = robsize;
         header = 0; // Changed when elements are added into the rob
         tail = 0; // Changed when elements are removed from rob
@@ -433,21 +464,21 @@ class Pipeline_Stage_Operator
 {
 private:
     unsigned int pipeline_width;
-    std::vector<Instruction_Structure> Pipeline_Registers;
+    vector<Instruction_Structure> Pipeline_Registers;
     unsigned int available_elements_in_stage_count;
-    std::vector<bool> available_elements_in_stage;
-    std::vector<bool> ready_to_move;
+    vector<bool> available_elements_in_stage;
+    vector<bool> ready_to_move;
     unsigned int pipeline_stage;
 public:
     /* Constructor for the class to initialize the pipeline register of size width */ 
     Pipeline_Stage_Operator(unsigned int width, unsigned int stage_no)
     {
         pipeline_width = width;
-        Pipeline_Registers = std::vector<Instruction_Structure>(width, {0, 0, 0, 0, 0, 0, -1, -1, -1, {0, 0}});
+        Pipeline_Registers = vector<Instruction_Structure>(width, {0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, {0, 0}});
         available_elements_in_stage_count = width;
         pipeline_stage = stage_no;
-        ready_to_move = std::vector<bool>(pipeline_width, 0);
-        available_elements_in_stage = std::vector<bool>(pipeline_width, 1);
+        ready_to_move = vector<bool>(pipeline_width, 0);
+        available_elements_in_stage = vector<bool>(pipeline_width, 1);
     }
 
 
@@ -460,10 +491,10 @@ public:
     *           0: Successfully added all instructions to the register                  *
     *           1: Did not add instructions to register, due to insufficient capacity   *
     ************** End Function to add instructions to pipeline register ***************/
-    bool Add_Instructions_to_Register(std::vector<Instruction_Structure> instruction_to_be_added, unsigned int sim_time_at_this_instant)
+    bool Add_Instructions_to_Register(vector<Instruction_Structure> instruction_to_be_added, unsigned int sim_time_at_this_instant)
     {
         // Check if all instructions can be added at once or not
-        //std::cout << "Adding stage: " << instruction_to_be_added.size() << ", " << available_elements_in_stage_count << std::endl;
+        //cout << "Adding stage: " << instruction_to_be_added.size() << ", " << available_elements_in_stage_count << endl;
         if (instruction_to_be_added.size() <= available_elements_in_stage_count)
         {
             unsigned int index_of_element_to_be_added = 0;
@@ -497,9 +528,9 @@ public:
     * Returns:                                                                          *
     *           Vector of Instructions which are ready to be moved to the next stage    *
     ****** End Function to get, and remove instructions to pipeline register ***********/
-    std::vector<Instruction_Structure> Get_and_Remove_Instructions_from_Register()
+    vector<Instruction_Structure> Get_and_Remove_Instructions_from_Register()
     {
-        std::vector<Instruction_Structure> Registers_to_be_returned;
+        vector<Instruction_Structure> Registers_to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             // If register is not empty
@@ -524,14 +555,14 @@ public:
         Selective_Removal_Struct To_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-           // std::cout << "Here pokay" << std::endl;
+           // cout << "Here pokay" << endl;
             if (ready_to_move[indexing] == 1)
             {
-                //std::cout << "Here pokayw4werew" << std::endl;
-                //std::cout << Instr_to_be_removed.seq_no << ", while " << Pipeline_Registers[indexing].seq_no << std::endl;
+                //cout << "Here pokayw4werew" << endl;
+                //cout << Instr_to_be_removed.seq_no << ", while " << Pipeline_Registers[indexing].seq_no << endl;
                 if (Instr_to_be_removed.seq_no == Pipeline_Registers[indexing].seq_no)
                 {
-                    //std::cout << "potyyy pokay" << std::endl;
+                    //cout << "potyyy pokay" << endl;
                     Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage]++;
                     ready_to_move[indexing] = 1;
                     To_be_returned.success = 1;
@@ -549,15 +580,15 @@ public:
         Selective_Removal_Struct To_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-            //std::cout << "Here pokay" << std::endl;
+            //cout << "Here pokay" << endl;
             if (ready_to_move[indexing] == 1)
             {
-                //std::cout << "Here pokayw4werew" << std::endl;
+                //cout << "Here pokayw4werew" << endl;
                 if (Instr_to_be_removed.seq_no == Pipeline_Registers[indexing].seq_no)
                 {
-                    //std::cout << "potyyy pokay" << std::endl;
+                    //cout << "potyyy pokay" << endl;
                     //Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage]++;
-                    std::cout << "potyyy pokay: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << std::endl;
+                    cout << "potyyy pokay: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
                     available_elements_in_stage[indexing] = 1;
                     available_elements_in_stage_count++;
                     ready_to_move[indexing] = 0;
@@ -602,12 +633,12 @@ public:
     }
 
 
-    std::vector<Instruction_Structure> Search_for_Almost_Completed_Instructions()
+    vector<Instruction_Structure> Search_for_Almost_Completed_Instructions()
     {
-        std::vector<Instruction_Structure> to_be_returned;
+        vector<Instruction_Structure> to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-            //std::cout << "Moshi moshi " << pipeline_stage << std::endl;
+            //cout << "Moshi moshi " << pipeline_stage << endl;
             if (available_elements_in_stage[indexing] != 0)
             {
                 if (pipeline_stage == 6)
@@ -669,7 +700,7 @@ public:
     {
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-            std::cout << Pipeline_Registers[indexing].seq_no << ", " << std::dec << Pipeline_Registers[indexing].dest_register << std::dec << std::endl;
+            cout << Pipeline_Registers[indexing].seq_no << ", " << dec << Pipeline_Registers[indexing].dest_register << dec << endl;
         }
     }
 
@@ -680,7 +711,7 @@ public:
      * Returns:                                                                         *
      *          Nothing                                                                 *
     ********************* End Add_Modified_Source_Registers ****************************/
-   void Add_Modified_Source_Registers(std::vector<int> dests, std::vector<int> srcs1, std::vector<int> srcs2)
+   void Add_Modified_Source_Registers(vector<int> dests, vector<int> srcs1, vector<int> srcs2)
     {
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
@@ -691,20 +722,20 @@ public:
     }
 
 
-    std::vector<Instruction_Structure> Search_for_Completed_Instructions()
+    vector<Instruction_Structure> Search_for_Completed_Instructions()
     {
-        std::vector<Instruction_Structure> to_be_returned;
+        vector<Instruction_Structure> to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] += 1;
             if (available_elements_in_stage[indexing] == 0)
             {
-                //std::cout << "Okay, ......" << std::endl;
+                //cout << "Okay, ......" << endl;
                 if (Pipeline_Registers[indexing].op_type == 0)
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
                     {
-                        //std::cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << std::endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -715,7 +746,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 2)
                     {
-                        //std::cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << std::endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -726,7 +757,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 5)
                     {
-                        //std::cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << std::endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -743,19 +774,19 @@ public:
 
     void Print_Timing()
     {
-        std::cout << "For pipeline stage :" << pipeline_stage << ", with width: " << pipeline_width << std::endl;
+        cout << "For pipeline stage :" << pipeline_stage << ", with width: " << pipeline_width << endl;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             if (available_elements_in_stage[indexing] == 0)
             {
                 for(unsigned int sub_index = 0; sub_index < 9; sub_index++)
                 {
-                    std::cout << "{" << Pipeline_Registers[indexing].time_info.start_time_at_each_stage[sub_index] << "," << Pipeline_Registers[indexing].time_info.duration_at_each_stage[sub_index] << "}, ";
+                    cout << "{" << Pipeline_Registers[indexing].time_info.start_time_at_each_stage[sub_index] << "," << Pipeline_Registers[indexing].time_info.duration_at_each_stage[sub_index] << "}, ";
                 }
-                std::cout << std::endl;
+                cout << endl;
             }
         }
-        std::cout << std::endl;
+        cout << endl;
     }
 };
 
