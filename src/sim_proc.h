@@ -266,23 +266,25 @@ public:
     * Returns:                                                                          *
     *           Vector of instructions that are ready to execute                        *
     ***************** End Get_Oldest_Instructions_from_IQ ******************************/
-	std::vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution, unsigned int pipe_line_width)
+    Selective_Removal_Struct Query_for_Oldest_Single_Instruction_from_IQ(vector<unsigned int> found_already)
     {
-		std::vector<Selective_Removal_Struct> Instructions_to_be_returned;
-        // Can only add instructions of size size_to_get
-        bool nothing_found = 1;
-        unsigned int no_found = 0;
-        unsigned int starting = 0;
-        unsigned int added_instructions = 0;
-        while(Instructions_to_be_returned.size() <= available_execution)
+        unsigned int mini_seq_no = 100000000;
+        unsigned int smallest_seq = 0;
+        Selective_Removal_Struct instruction_temp;
+        for(unsigned int indexing = 0; indexing < issue_queue.size(); indexing++)
         {
-            unsigned int mini_seq_no = 100000000;
-		    int index = -1;
-            // Searching through valid instructions in the IQ
-            for(unsigned int indexing = starting; indexing < issue_queue_size; indexing++)
+            // Search through the valid bits only
+            if (issue_queue[indexing].valid_bit == 1)
             {
-                // Search through the valid bits only
-                if (issue_queue[indexing].valid_bit == 1)
+                bool found = 0;
+                for(unsigned int sub_ind = 0; sub_ind < found_already.size(); sub_ind++)
+                {
+                    if(found_already[sub_ind] == issue_queue[indexing].instruction.seq_no)
+                    {
+                        found = 1;
+                    }
+                }
+                if (found != 1)
                 {
                     //cout << "Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
                     // Checking if both the src registers are ready
@@ -291,37 +293,43 @@ public:
                         // Finding the index of instruction that is the oldest in the IQ
                         if (issue_queue[indexing].instruction.seq_no < mini_seq_no)
                         {
-                            index = indexing;
                             mini_seq_no = issue_queue[indexing].instruction.seq_no;
                             //cout << "Got : " << mini_seq_no << endl;
-                            Selective_Removal_Struct instruction_temp;
                             instruction_temp.success = 1;
-                            instruction_temp.instruction = issue_queue[index].instruction;
-                            Instructions_to_be_returned.push_back(instruction_temp);
-                            nothing_found = 0;
-                            no_found++;
-                            added_instructions++;
-                            if (no_found == available_execution)
+                            instruction_temp.instruction = issue_queue[indexing].instruction;
+                            if ( instruction_temp.instruction.seq_no < smallest_seq )
                             {
-                                return Instructions_to_be_returned;
+                                smallest_seq = instruction_temp.instruction.seq_no;
                             }
                         }
                     }
                 }
             }
-            starting++;
-            // Add instruction to the tobereturned structure
-            //cout << "Index is " << index << endl;
-            if (index == -1)
+        }
+        return instruction_temp;;
+    }
+
+	std::vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution, unsigned int pipe_line_width)
+    {
+		std::vector<Selective_Removal_Struct> Instructions_to_be_returned;
+        // Can only add instructions of size size_to_get
+        bool nothing_found = 1;
+        vector<unsigned int> elements_found;
+        while(Instructions_to_be_returned.size() <= available_execution)
+        {
+            // Searching through valid instructions in the IQ
+            Selective_Removal_Struct temp = Query_for_Oldest_Single_Instruction_from_IQ(elements_found);
+            if (temp.success == 0)
             {
-                return Instructions_to_be_returned;
+                break;
             }
-            if ( added_instructions >= pipe_line_width)
+            elements_found.push_back(temp.instruction.seq_no);
+            Instructions_to_be_returned.push_back(temp);
+            if (Instructions_to_be_returned.size() >= pipe_line_width)
             {
                 break;
             }
         }
-
         if (nothing_found == 1)
         {
             cout << "Error(IQ): Check for better barrier possibility" << endl;

@@ -126,19 +126,6 @@ int main (int argc, char* argv[])
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     do{
-        cout << "Sim time: " << sim_time << endl;
-        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-        Rename_Map_Table_controller.Print_RMT();
-        cout << "?????????????????????????????????????????????????????????????????????????" << endl;
-        IQ_controller.Print_IQ();
-        cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
-        ROB_controller.Print_ROB();
-        cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-        /******************************************* Retire Stage ******************************************/
-        //cout << "---------------------------- Retire Stage -------------------------------" << endl;
-        // If ROB is not empty
-        cout<< "Available elements in EX: " << EX.Get_Just_Availability() << endl;
-        cout<< "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
         RT.Increment_Time();
         if (ROB_controller.Get_Availability_in_ROB() != 0)
         {
@@ -204,6 +191,7 @@ int main (int argc, char* argv[])
                         evicted_tails.clear();
                         //cout << "Poshu" << endl;
                         no_of_retired_instructions++;
+
                         Removal_Status = ROB_controller.Remove_Instruction_from_ROB();
                         if (Removal_Status == 0)
                         {
@@ -215,6 +203,7 @@ int main (int argc, char* argv[])
                         break;
                     }
                 }
+                //cout << "No of retired: " << no_of_retired_instructions << endl;
                 if (no_of_retired_instructions >= params.width)
                 {
                     break;
@@ -249,7 +238,6 @@ int main (int argc, char* argv[])
         if ((stall_WB != 1) && (EX.Get_Status_of_Pipeline() != -1))
         {
             //if (EX.Get_Status_of_Pipeline() != -1)
-            {
                 // Need to remove instructions that have completed execution only
                 // Get instruction from previous stage
                 to_WB = EX.Search_for_Completed_Instructions();
@@ -257,9 +245,10 @@ int main (int argc, char* argv[])
                 // Add instruction from the pervious stage
                 if (to_WB.size() != 0)
                 {
-                    
+
                     for(unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
                     {
+                        IQ_controller.Set_SRC_Ready_Bit(to_WB[indexing].renamed_dest);
                         //cout << "Moshi: " << to_WB[indexing].seq_no << "\t" << to_WB[indexing].renamed_dest << endl;
                         ROB_controller.Mark_Instruction_Ready(to_WB[indexing].renamed_dest);
                         //cout << "WriteBack stage: " << to_WB[indexing].seq_no << endl;
@@ -273,12 +262,11 @@ int main (int argc, char* argv[])
                 // If instruction completed execution, remove from execute_list / execute stage
                 // Add instruction to writeback stage
                 // Wakeup dependent instructions in IQ, DI, RR    
-            }
-            vector<Instruction_Structure> Almost_completed = EX.Search_for_Almost_Completed_Instructions();
-            cout << "Amlost completed size is " << Almost_completed.size() << endl;
-            for (unsigned int indexing = 0; indexing < Almost_completed.size(); indexing++)
+            //vector<Instruction_Structure> Almost_completed = EX.Search_for_Almost_Completed_Instructions();
+            //cout << "Amlost completed size is " << Almost_completed.size() << endl;
+            //for (unsigned int indexing = 0; indexing < Almost_completed.size(); indexing++)
             {
-                IQ_controller.Set_SRC_Ready_Bit(Almost_completed[indexing].renamed_dest);
+            //    IQ_controller.Set_SRC_Ready_Bit(Almost_completed[indexing].renamed_dest);
             }
         }
         else
@@ -301,7 +289,7 @@ int main (int argc, char* argv[])
             //cout << "Execute Stage: ";
             //EX.Print_Instructions_in_Register();
             //if (IS.Get_Status_of_Pipeline() != -1)
-            IS.Get_Status_of_Pipeline();
+            //IS.Get_Status_of_Pipeline();
             //IS.Get_and_Remove_Instructions_from_Register();
             // Older instructions have higher priority
 
@@ -310,15 +298,51 @@ int main (int argc, char* argv[])
                 cout << "Issue stage: " << to_IS[indexing].seq_no << endl;
             }
             //cout << "SIZE is : " << to_EX.size() << endl;
+
+            to_EX.clear();
+            temp_structure.clear();
+
+            TempInstructions_to_EX.clear();
+            temp_structure = IQ_controller.Query_for_Oldest_Instructions_from_IQ(available_space_in_EX, params.width);
+            unsigned int no_of_issues = 0;
+            //cout << "-------------------Issue Queue-------------------------" << endl;
+            while(TempInstructions_to_EX.size() != temp_structure.size())
+            {
+                //cout << "Values are: " << TempInstructions_to_EX.size() << ", while " << temp_structure.size() << endl;
+                //cout << "Pushed is " << temp_structure[no_of_issues].instruction.seq_no << endl;
+                TempInstructions_to_EX.push_back(temp_structure[no_of_issues].instruction);
+                no_of_issues++;
+            }
+
+            if (TempInstructions_to_EX.size() != 0)
+            {
+                for(unsigned int indexing = 0; indexing < TempInstructions_to_EX.size(); indexing++) // The max value should be iq_size or WIDTH
+                {
+                    // Remove instruction from IQ
+                    Selective_Removal_Struct Status_IS = IS.Pseudo_Selective_Remove_Instruction(TempInstructions_to_EX[indexing]);
+                    if (Status_IS.success == 0)
+                    {
+                        //cout << "Something is Fishy!" << endl;
+
+                    }
+                    else
+                    {
+                        //cout << "Maybe Succesfully pushing is " << Status_IS.instruction.seq_no << endl;
+                        //Status_IS.instruction.time_info.duration_at_each_stage[5]++;
+                        to_EX.push_back(Status_IS.instruction);
+                        IS.Selective_Remove_Instruction(Status_IS.instruction);
+                        IQ_controller.Remove_Instruction_from_IQ(Status_IS.instruction.seq_no);
+                    }
+                    // Add instruction to the execute_list, or execute stage
+                }
+            }
             if (to_EX.size() != 0)
             {
                 //cout << "OK fucker : " << to_EX[0].seq_no << endl;
                 stall_IS = EX.Add_Instructions_to_Register(to_EX, sim_time);
                 //cout << "Heyyyyyy:::: "  << stall_IS << endl;
             }
-            to_EX.clear();
-            temp_structure.clear();
-            // Originally it stayed here
+
         }
         else
         {
@@ -342,46 +366,24 @@ int main (int argc, char* argv[])
             {
                 // Get instruction from previous stage
                 to_IS = DI.Get_and_Remove_Instructions_from_Register();
+
+                // Add instruction to issuequeue
+                if (to_IS.size() != 0)
+                {
+                    for(unsigned int indexing = 0; indexing < params.width; indexing++)
+                    {
+                        IQ_controller.Add_Instruction_to_IQ(to_IS[indexing]);
+                    }
+                }
                 // Add instruction from the pervious stage
                 stall_DI = IS.Add_Instructions_to_Register(to_IS, sim_time);
                 
                 //cout << "Issue Stage: ";
                 //IS.Print_Instructions_in_Register();
                 
-                TempInstructions_to_EX.clear();
-                temp_structure = IQ_controller.Query_for_Oldest_Instructions_from_IQ(available_space_in_EX, params.width);
-                unsigned int no_of_issues = 0;
-                //cout << "-------------------Issue Queue-------------------------" << endl;
-                while(TempInstructions_to_EX.size() != temp_structure.size())
-                {
-                    //cout << "Values are: " << TempInstructions_to_EX.size() << ", while " << temp_structure.size() << endl;
-                    //cout << "Pushed is " << temp_structure[no_of_issues].instruction.seq_no << endl;
-                    TempInstructions_to_EX.push_back(temp_structure[no_of_issues].instruction);
-                    no_of_issues++;
-                }
-                //cout << "---------------- End Issue Queue-------------------------" << endl;
-                if (TempInstructions_to_EX.size() != 0)
-                {
-                    for(unsigned int indexing = 0; indexing < TempInstructions_to_EX.size(); indexing++) // The max value should be iq_size or WIDTH
-                    {
-                        // Remove instruction from IQ
-                        Selective_Removal_Struct Status_IS = IS.Pseudo_Selective_Remove_Instruction(TempInstructions_to_EX[indexing]);
-                        if (Status_IS.success == 0)
-                        {
-                            //cout << "Something is Fishy!" << endl;
 
-                        }
-                        else
-                        {
-                            //cout << "Maybe Succesfully pushing is " << Status_IS.instruction.seq_no << endl;
-                            Status_IS.instruction.time_info.duration_at_each_stage[5]++;
-                            to_EX.push_back(Status_IS.instruction);
-                            IS.Selective_Remove_Instruction(Status_IS.instruction);
-                            IQ_controller.Remove_Instruction_from_IQ(Status_IS.instruction.seq_no);
-                        }
-                        // Add instruction to the execute_list, or execute stage
-                    }
-                }
+                //cout << "---------------- End Issue Queue-------------------------" << endl;
+
                 //IQ_controller.Print_IQ();
                 //cout << "Yalla" << endl;
                 // Include bypass here
@@ -400,20 +402,13 @@ int main (int argc, char* argv[])
         /****************************************** Dispatch Stage *****************************************/
         //cout << "---------------------------- Dispatch Stage -------------------------------" << endl;
         RR.Increment_Time();
-        if ((stall_DI != 1) && (DI.Get_Availability_of_Pipeline() == params.width) && (IQ_controller.Get_No_Available_Elements_in_IQ() >= params.width)) // Also check the issuequeue
+        if ((stall_DI != 1) && (DI.Get_Availability_of_Pipeline() == params.width)) // Also check the issuequeue (IQ_controller.Get_No_Available_Elements_in_IQ() >= params.width)
         {
             if(RR.Get_Status_of_Pipeline() != -1)
             {
                 // Get instruction from previous stage
                 to_DI = RR.Get_and_Remove_Instructions_from_Register();
-                // Add instruction to issuequeue
-                if (to_DI.size() != 0)
-                {
-                    for(unsigned int indexing = 0; indexing < params.width; indexing++)
-                    {
-                        IQ_controller.Add_Instruction_to_IQ(to_DI[indexing]);
-                    }
-                }
+
                 // Add instruction from the pervious stage
                 stall_RR = DI.Add_Instructions_to_Register(to_DI, sim_time);
                 cout << "Dispatch Stage: ";
@@ -583,6 +578,20 @@ int main (int argc, char* argv[])
         //FE.Print_Timing();
         //cout << "------------------------- End Fetch Stage -------------------------------" << endl;
         /**************************************** End Fetch Stage ******************************************/
+        cout << "****************************************************************************************************************************" << endl;
+        cout << "Sim time: " << sim_time << endl;
+        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+        Rename_Map_Table_controller.Print_RMT();
+        cout << "?????????????????????????????????????????????????????????????????????????" << endl;
+        IQ_controller.Print_IQ();
+        cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
+        ROB_controller.Print_ROB();
+        cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+        /******************************************* Retire Stage ******************************************/
+        //cout << "---------------------------- Retire Stage -------------------------------" << endl;
+        // If ROB is not empty
+        cout<< "Available elements in EX: " << EX.Get_Just_Availability() << endl;
+        cout<< "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
 
 
 
@@ -590,7 +599,6 @@ int main (int argc, char* argv[])
 
         /************************************ Advance cycle calculation ************************************/
         // Increments the simulation time
-        cout << "****************************************************************************************************************************" << endl;
         ++sim_time;
         // Check if simulation is completed
         if ((empty_pipeline == 1) && (fetched_all_instructions == 1))
