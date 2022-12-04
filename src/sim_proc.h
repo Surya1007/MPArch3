@@ -207,8 +207,8 @@ public:
         {
             if (issue_queue[indexing].valid_bit == 1)
             {
-                cout << issue_queue[indexing].instruction.seq_no  << "\t" << issue_queue[indexing].instruction.renamed_dest << "\t" << issue_queue[indexing].src1_ready_bit 
-                << "\t" << issue_queue[indexing].instruction.renamed_src1 << "\t" << issue_queue[indexing].src2_ready_bit << "\t" << issue_queue[indexing].instruction.renamed_src2 <<endl;
+                cout << issue_queue[indexing].instruction.seq_no  << "\tROB" << issue_queue[indexing].instruction.renamed_dest << "\t" << issue_queue[indexing].src1_ready_bit 
+                << "\tROB" << issue_queue[indexing].instruction.renamed_src1 << "\t" << issue_queue[indexing].src2_ready_bit << "\tROB" << issue_queue[indexing].instruction.renamed_src2 <<endl;
             }
         }
         cout << "Issue Queue Ends Here" << endl;
@@ -235,9 +235,17 @@ public:
                 {
                     issue_queue[indexing].src1_ready_bit = 1;
                 }
+                else
+                {
+                    issue_queue[indexing].src1_ready_bit = 0;
+                }
                 if (issue_queue[indexing].instruction.renamed_src2 == -1)
                 {
                     issue_queue[indexing].src2_ready_bit = 1;
+                }
+                else
+                {
+                    issue_queue[indexing].src2_ready_bit = 0;
                 }
                 issue_queue[indexing].valid_bit = 1;
                 --available_iq_elements;
@@ -258,13 +266,14 @@ public:
     * Returns:                                                                          *
     *           Vector of instructions that are ready to execute                        *
     ***************** End Get_Oldest_Instructions_from_IQ ******************************/
-	std::vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution)
+	std::vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution, unsigned int pipe_line_width)
     {
 		std::vector<Selective_Removal_Struct> Instructions_to_be_returned;
         // Can only add instructions of size size_to_get
         bool nothing_found = 1;
         unsigned int no_found = 0;
         unsigned int starting = 0;
+        unsigned int added_instructions = 0;
         while(Instructions_to_be_returned.size() <= available_execution)
         {
             unsigned int mini_seq_no = 100000000;
@@ -291,6 +300,7 @@ public:
                             Instructions_to_be_returned.push_back(instruction_temp);
                             nothing_found = 0;
                             no_found++;
+                            added_instructions++;
                             if (no_found == available_execution)
                             {
                                 return Instructions_to_be_returned;
@@ -305,6 +315,10 @@ public:
             if (index == -1)
             {
                 return Instructions_to_be_returned;
+            }
+            if ( added_instructions >= pipe_line_width)
+            {
+                break;
             }
         }
 
@@ -361,6 +375,7 @@ public:
             // Set the ready bits of only that are valid
             if (issue_queue[indexing].valid_bit == 1)
             {
+                cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
                 // Sets the src1 ready bit if the renamed register is src_register
                 if (issue_queue[indexing].instruction.renamed_src1 == src_register)
                 {
@@ -373,7 +388,8 @@ public:
                 }
             }
         }
-        cout << "Error(IQ): Unable to find the required instruction to set the ready bits" << endl;
+        cout << "To set: " << src_register << endl;
+        //cout << "Error(IQ): Unable to find the required instruction to set the ready bits" << endl;
     }
 
 };
@@ -481,6 +497,26 @@ public:
         }
     }
 
+    bool Check_if_instruction_is_ready_to_retire()
+    {
+        if (ROB[tail].ready == 1)
+        {
+            if (no_of_available_elements_in_rob != 0)
+            {
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        else
+        {
+            //cout << "Kyaaaa" << endl;
+            return 0;
+        }
+    }
+
 
     /************************** Mark_Instruction_Ready **********************************
      * Marks an instruction ready in  ROB, using rob_to_be_marked_as_rdy as index:      *
@@ -564,7 +600,7 @@ public:
                     available_elements_in_stage[indexing] = 0;
                     available_elements_in_stage_count--;
                     // If register is not in EX, or WB, then the instruction usually stays for 1 clock cycle only
-                    if ((pipeline_stage != 6) || (pipeline_stage != 7))
+                    if ((pipeline_stage != 5) || (pipeline_stage != 6) || (pipeline_stage != 7))
                     {
                         ready_to_move[indexing] = 1;
                     }
@@ -707,11 +743,12 @@ public:
         vector<Instruction_Structure> to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-            //cout << "Moshi moshi " << pipeline_stage << endl;
-            if (available_elements_in_stage[indexing] != 0)
+            cout << "Moshi moshi " << pipeline_stage << endl;
+            if (available_elements_in_stage[indexing] == 0)
             {
                 if (pipeline_stage == 6)
                 {
+                    cout << "Checking: " << Pipeline_Registers[indexing].seq_no << " with timing: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
                     if (Pipeline_Registers[indexing].op_type == 0)
                     {
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
@@ -728,12 +765,14 @@ public:
                             ready_to_move[indexing] = 1;
                         }
                     }
-                    else //if (Pipeline_Registers[indexing].op_type == 5)
+                    else //if (Pipeline_Registers[indexing].op_type == 2)
                     {
+                        cout << "Simsim" << endl;
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
                             ready_to_move[indexing] = 1;
+                            cout << "Setting" << endl;
                         }
                     }
                 }
@@ -806,7 +845,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
                     {
-                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -817,7 +856,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 2)
                     {
-                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -828,7 +867,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 5)
                     {
-                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
