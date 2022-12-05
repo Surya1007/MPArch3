@@ -662,7 +662,7 @@ public:
         }
         else
         {
-            cout << "Chuthiye" << endl;
+            //cout << "Chuthiye" << endl;
         }
     }
 
@@ -858,7 +858,7 @@ public:
             //Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage]++;
             if (available_elements_in_stage[indexing] == 0)
             {
-                //cout << "Okay, ......" << endl;
+                //cout << "For SEQ: " << Pipeline_Registers[indexing].seq_no << " with, "<< Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage]  << endl;
                 if (Pipeline_Registers[indexing].op_type == 0)
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
@@ -881,7 +881,7 @@ public:
                         ready_to_move[indexing] = 0;
                     }
                 }
-                else //if (Pipeline_Registers[indexing].op_type == 5)
+                else if (Pipeline_Registers[indexing].op_type == 2)
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 5)
                     {
