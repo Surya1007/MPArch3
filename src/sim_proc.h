@@ -498,7 +498,7 @@ public:
                 no_of_available_elements_in_rob++;
                 ROB[tail].destination = 0;
                 ROB[tail].ready = 0;
-                ++tail;
+                tail++;
                 if (tail >= rob_size)
                     tail -= rob_size;
                 //cout << "Okay, tail value is " << tail << endl;
@@ -639,6 +639,32 @@ public:
         }
     }
 
+    vector<Instruction_Structure> Get_Just_Registers()
+    {
+        vector<Instruction_Structure> temp;
+        if(available_elements_in_stage_count == 0)
+            return Pipeline_Registers;
+        else
+        {
+            temp.clear();
+            return temp;
+        }
+    }
+
+    void Add_Just_Registers(vector<Instruction_Structure> instructions_to_be_added)
+    {
+        if (instructions_to_be_added.size() == pipeline_width)
+        {
+            for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+            {
+                Pipeline_Registers[indexing] = instructions_to_be_added[indexing];
+            }
+        }
+        else
+        {
+            cout << "Chuthiye" << endl;
+        }
+    }
 
     void Set_Renamed_Register_Ready(vector<int> ready_registers)
     {
@@ -804,7 +830,7 @@ public:
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             if (available_elements_in_stage[indexing] == 0)
-                cout << Pipeline_Registers[indexing].seq_no << endl;
+                cout << Pipeline_Registers[indexing].seq_no << " with destination: " << Pipeline_Registers[indexing].renamed_dest << "\t" << Pipeline_Registers[indexing].renamed_src1 << "\t" << Pipeline_Registers[indexing].renamed_src2 << endl;
         }
         
     }
@@ -816,14 +842,11 @@ public:
      * Returns:                                                                         *
      *          Nothing                                                                 *
     ********************* End Add_Modified_Source_Registers ****************************/
-   void Add_Modified_Source_Registers(vector<int> dests, vector<int> srcs1, vector<int> srcs2)
+   void Add_Modified_Source_Registers(unsigned int indexing, int dests, int srcs1, int srcs2)
     {
-        for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
-        {
-            Pipeline_Registers[indexing].renamed_dest = dests[indexing];
-            Pipeline_Registers[indexing].renamed_src1 = srcs1[indexing];
-            Pipeline_Registers[indexing].renamed_src2 = srcs2[indexing];
-        }
+        Pipeline_Registers[indexing].renamed_dest = dests;
+        Pipeline_Registers[indexing].renamed_src1 = srcs1;
+        Pipeline_Registers[indexing].renamed_src2 = srcs2;
     }
 
 

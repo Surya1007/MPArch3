@@ -63,7 +63,7 @@ int main (int argc, char* argv[])
     Pipeline_Stage_Operator IS(params.iq_size, 5); // Concerned part
     Pipeline_Stage_Operator EX(params.width * 5, 6);
     Pipeline_Stage_Operator WB(params.width * 5, 7);
-    Pipeline_Stage_Operator RT(params.width * 10, 8); // May require change
+    Pipeline_Stage_Operator RT(params.width * 50, 8); // May require change
 
     vector<Instruction_Structure> to_FE;
     vector<Instruction_Structure> to_DE;
@@ -111,6 +111,7 @@ int main (int argc, char* argv[])
     vector<Instruction_Structure> TempInstructions_to_EX;
     vector<Selective_Removal_Struct> temp_structure;
     vector<int> registers_to_set_ready;
+    bool renamed = 0;
     /* Completed Initialization simulation environment */
 
 
@@ -129,13 +130,12 @@ int main (int argc, char* argv[])
     do{
         registers_to_set_ready.clear();
         RT.Increment_Time();
-        //cout << "ROB availability is: " << ROB_controller.Get_Availability_in_ROB() << endl;
+        cout << "ROB availability is: " << ROB_controller.Get_Availability_in_ROB() << endl;
         if (ROB_controller.Get_Availability_in_ROB() != params.rob_size)
         {
 
             
 
-            //cout << "ATLEAST HERE" << endl;
             unsigned int tail_index = 0;
             bool Removal_Status = 1;
             unsigned int no_of_retired_instructions = 0;
@@ -154,10 +154,10 @@ int main (int argc, char* argv[])
                     Selective_Removal_Struct storing;
                     if (temp.success == 1)
                     {
-                        //cout << "Ready to retire are: , while searching for "<< temp.instruction .seq_no << endl;
-                        //RT.Print_Instructions_in_Register();
+                        cout << "Ready to retire are: , while searching for "<< temp.instruction .seq_no << endl;
+                        RT.Print_Instructions_in_Register();
                         storing = RT.Selective_Remove_Instruction(temp.instruction);
-                        //cout << "So far so good with storing: " << storing.success << endl;
+                        cout << "So far so good with storing: " << storing.success << endl;
                     }
                     else
                     {
@@ -187,7 +187,7 @@ int main (int argc, char* argv[])
                             total_no_retired_instructions++;
                             if (completed_instructions[indexing].dest_register != -1)
                             {
-                                //cout << "I am the shithole trying to push: " << completed_instructions[indexing].renamed_dest << endl;
+                                cout << "I am the shithole trying to push: " << completed_instructions[indexing].renamed_dest << endl;
                                 registers_to_set_ready.push_back(completed_instructions[indexing].renamed_dest);
                                 if (completed_instructions[indexing].renamed_dest == Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(completed_instructions[indexing].dest_register).rob_tag)
                                 {
@@ -199,11 +199,11 @@ int main (int argc, char* argv[])
                         evicted_tails.clear();
                         //cout << "Poshu" << endl;
                         no_of_retired_instructions++;
-
+                        
                         Removal_Status = ROB_controller.Remove_Instruction_from_ROB();
                         if (Removal_Status == 0)
                         {
-                            //cout << "Serious shit" << endl;
+                            cout << "Serious shit" << endl;
                         }
                     }
                     else
@@ -211,7 +211,6 @@ int main (int argc, char* argv[])
                         break;
                     }
                 }
-                //cout << "No of retired: " << no_of_retired_instructions << endl;
                 if (no_of_retired_instructions >= params.width)
                 {
                     break;
@@ -231,8 +230,8 @@ int main (int argc, char* argv[])
             
             // Add instruction from the pervious stage
             stall_WB = RT.Add_Instructions_to_Register(to_RT, sim_time);
-            //cout << "Retire stage: ";
-            //RT.Print_Instructions_in_Register();
+            cout << "Retire stage: ";
+            RT.Print_Instructions_in_Register();
         }
         //RT.Print_Timing();
         // Change the ROB tail pointer
@@ -243,7 +242,7 @@ int main (int argc, char* argv[])
         //cout << "---------------------------- Writeback Stage -------------------------------" << endl;
         unsigned int available_space_in_WB = WB.Get_Availability_of_Pipeline();
         EX.Increment_Time();
-        if ((stall_WB != 1) && (EX.Get_Status_of_Pipeline() != -1))
+        if ((stall_WB != 1) && WB.Get_Availability_of_Pipeline())//(EX.Get_Status_of_Pipeline() != -1))
         {
             //if (EX.Get_Status_of_Pipeline() != -1)
                 // Need to remove instructions that have completed execution only
@@ -264,9 +263,9 @@ int main (int argc, char* argv[])
                         ROB_controller.Mark_Instruction_Ready(to_WB[indexing].renamed_dest);
                         //cout << "WriteBack stage: " << to_WB[indexing].seq_no << endl;
                     }
-                    //cout << "WriteBack stage: ";
-                    //WB.Print_Instructions_in_Register(); 
                     stall_EX = WB.Add_Instructions_to_Register(to_WB, sim_time);    
+                    cout << "WriteBack stage: ";
+                    WB.Print_Instructions_in_Register(); 
 
                 }
                 // Mark the ready bits in ROB   
@@ -283,7 +282,7 @@ int main (int argc, char* argv[])
         }
         else
         {
-            //cout << "Stalling EX" << endl;
+            cout << "Stalling EX" << endl;
             stall_EX = 0;
         }
         //WB.Print_Timing();
@@ -296,10 +295,8 @@ int main (int argc, char* argv[])
         unsigned int available_space_in_EX = EX.Get_Availability_of_Pipeline();
         //cout << "Shit is : " << stall_EX << available_space_in_EX << endl;
         IS.Increment_Time();
-        if ((stall_EX != 1) && (available_space_in_EX != 0) && (IS.Get_Just_Availability() != 0))
+        if ((stall_EX != 1) && (available_space_in_EX != 0))// (IS.Get_Just_Availability() != 0)
         {
-            //cout << "Execute Stage: ";
-            //EX.Print_Instructions_in_Register();
             //if (IS.Get_Status_of_Pipeline() != -1)
             //IS.Get_Status_of_Pipeline();
             //IS.Get_and_Remove_Instructions_from_Register();
@@ -352,13 +349,15 @@ int main (int argc, char* argv[])
             {
                 //cout << "OK fucker : " << to_EX[0].seq_no << endl;
                 stall_IS = EX.Add_Instructions_to_Register(to_EX, sim_time);
+                cout << "Execute Stage: ";
+                EX.Print_Instructions_in_Register();
                 //cout << "Heyyyyyy:::: "  << stall_IS << endl;
             }
 
         }
         else
         {
-            //cout << "Stalling IS" << endl;
+            cout << "Stalling IS" << endl;
             stall_IS = 0;
         }
         //EX.Print_Timing();
@@ -393,8 +392,8 @@ int main (int argc, char* argv[])
                 // Add instruction from the pervious stage
                 stall_DI = IS.Add_Instructions_to_Register(to_IS, sim_time);
                 
-                //cout << "Issue Stage: ";
-                //IS.Print_Instructions_in_Register();
+                cout << "Issue Stage: ";
+                IS.Print_Instructions_in_Register();
                 
 
                 //cout << "---------------- End Issue Queue-------------------------" << endl;
@@ -406,7 +405,7 @@ int main (int argc, char* argv[])
         }
         else
         {
-            //cout << "Stalling DI" << endl;
+            cout << "Stalling DI" << endl;
             stall_DI = 0;
         }
         // Another possibility for a bypass
@@ -428,15 +427,15 @@ int main (int argc, char* argv[])
 
                 // Add instruction from the pervious stage
                 stall_RR = DI.Add_Instructions_to_Register(to_DI, sim_time);
-                //cout << "Dispatch Stage: ";
-                //DI.Print_Instructions_in_Register();
+                cout << "Dispatch Stage: ";
+                DI.Print_Instructions_in_Register();
 
                 // Include bypass here
             }
         }
         else
         {
-            //cout << "Stalling RR" << endl;
+            cout << "Stalling RR" << endl;
             stall_RR = 1;
         }
         // Another possibility for a bypass
@@ -449,29 +448,87 @@ int main (int argc, char* argv[])
         RN.Increment_Time();
         if ((stall_RR != 1) && (RR.Get_Availability_of_Pipeline() == params.width))
         {
-            if (RN.Get_Status_of_Pipeline() != -1)
+                    if (ROB_controller.Get_Availability_in_ROB() >= params.width)
+        {
+            if (RN.Get_Just_Availability() == 0)
+            {
+                vector<Instruction_Structure> temp_regs = RN.Get_Just_Registers();
+                for (unsigned int indexing = 0; indexing < params.width; indexing++)
+                {
+                    cout << "Lanja" << indexing << endl;
+                    // Allocate an entry in ROB for instructions in order
+                    unsigned int dest_pointer = ROB_controller.Add_Instruction_to_ROB(temp_regs[indexing].dest_register, temp_regs[indexing].PC);
+                    ROB_controller.Increment_header();
+                    // Add the renamed source registers to srcs1
+                    if (temp_regs[indexing].src1_register != -1)
+                    {
+                        Individual_Rename_Map_Table_struct src1 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(temp_regs[indexing].src1_register);
+                        if (src1.valid == 1)
+                        {
+                            temp_regs[indexing].renamed_src1 = src1.rob_tag; // bla bla
+                        }
+                    }
+                    // Add the renamed source registers to srcs2
+                    if (temp_regs[indexing].src2_register != -1)
+                    {
+                        Individual_Rename_Map_Table_struct src2 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(temp_regs[indexing].src2_register);
+                        if (src2.valid == 1)
+                        {
+                            temp_regs[indexing].renamed_src2 = src2.rob_tag; // bla bla
+                        }
+                    }
+                    // Add the renamed destination register to dests
+                    temp_regs[indexing].renamed_dest = dest_pointer;
+                    RN.Add_Just_Registers(temp_regs);
+                    renamed = 1;
+                    //cout << "Renaming the registers as: " << to_RN[indexing].dest_register << "with: " << dest_pointer << endl;
+                    if (temp_regs[indexing].dest_register != -1)
+                        Rename_Map_Table_controller.Set_Rob_Tag_in_RMT(temp_regs[indexing].dest_register, dest_pointer);
+                    
+                }
+            
+
+            //cout << "Rename Stage: ";
+            //RN.Print_Instructions_in_Register();
+            
+            // To let all instructions whose rob values are already ready
+            vector<bool> temp_values = ROB_controller.Get_All_ROB();
+            vector<int> registers_that_are_ready;
+            for(unsigned int indexing = 0; indexing < temp_values.size(); indexing++)
+            {
+                if (temp_values[indexing] == 1)
+                    registers_that_are_ready.push_back((int) indexing);
+            }
+            if (registers_that_are_ready.size() != 0)
+                RN.Set_Renamed_Register_Ready(registers_that_are_ready);
+            // Ends here  To let all instructions whose rob values are already ready
+            }
+        }
+            if ((RN.Get_Status_of_Pipeline() != -1) && (renamed == 1))
             {
                 // Get instruction from previous stage
                 if (registers_to_set_ready.size()!= 0)
                     RN.Set_Renamed_Register_Ready(registers_to_set_ready);
                 to_RR = RN.Get_and_Remove_Instructions_from_Register();
-                for (unsigned int indexing = 0; indexing < to_RR.size(); indexing++)
-                {
-                    //cout << "Register read: " << to_RR[indexing].seq_no << endl;
-                }
                 // Add instruction from the pervious stage
                 stall_RN = RR.Add_Instructions_to_Register(to_RR, sim_time);
+                cout << "Regread Stage: ";
+                RR.Print_Instructions_in_Register();
+                renamed = 0;
+
                 // Need to include a bypass here
                 // Not sure if ready bits are required or not
                 // If required, search through ROB for the renamed source registers,
                 /*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
             }
+            else
+            {    cout << "Abba" << endl;}
 
         }
         else
         {
-            //cout << "Stalling RN" << endl;
-           stall_RN = 1;
+            cout << "Stalling RN" << endl;
+            stall_RN = 1;
         }
         // Another possibility for a bypass
         //RR.Print_Timing();
@@ -482,71 +539,37 @@ int main (int argc, char* argv[])
         //cout << "---------------------------- Rename Stage -------------------------------" << endl;
         DE.Increment_Time();
         
-        if ((stall_RN != 1) && (RN.Get_Availability_of_Pipeline() == params.width) && (ROB_controller.Get_Availability_in_ROB() >= params.width))
+        //if ((stall_RN != 1) && (RN.Get_Availability_of_Pipeline() == params.width)) // && (ROB_controller.Get_Availability_in_ROB() >= params.width)
+        if ((RN.Get_Availability_of_Pipeline() == params.width))
         {
-            if (DE.Get_Status_of_Pipeline() != -1)
+            if (stall_RN != 1)
             {
-                // Get instruction from previous stage
-                to_RN = DE.Get_and_Remove_Instructions_from_Register();
-                if (to_RN.size() != 0)
+                if (DE.Get_Status_of_Pipeline() != -1)
                 {
-                    for (unsigned int indexing = 0; indexing < params.width; indexing++)
-                    {
-                        // Allocate an entry in ROB for instructions in order
-                        unsigned int dest_pointer = ROB_controller.Add_Instruction_to_ROB(to_RN[indexing].dest_register, to_RN[indexing].PC);
-                        ROB_controller.Increment_header();
-                        // Add the renamed source registers to srcs1
-                        if (to_RN[indexing].src1_register != -1)
-                        {
-                            Individual_Rename_Map_Table_struct src1 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(to_RN[indexing].src1_register);
-                            if (src1.valid == 1)
-                            {
-                                to_RN[indexing].renamed_src1 = src1.rob_tag;
-                            }
-                        }
-                        // Add the renamed source registers to srcs2
-                        if (to_RN[indexing].src2_register != -1)
-                        {
-                            Individual_Rename_Map_Table_struct src2 = Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(to_RN[indexing].src2_register);
-                            if (src2.valid == 1)
-                            {
-                                to_RN[indexing].renamed_src2 = src2.rob_tag;
-                            }
-                        }
-                        // Add the renamed destination register to dests
-                        to_RN[indexing].renamed_dest = dest_pointer;
-                        //cout << "Renaming the registers as: " << to_RN[indexing].dest_register << "with: " << dest_pointer << endl;
-                        if (to_RN[indexing].dest_register != -1)
-                            Rename_Map_Table_controller.Set_Rob_Tag_in_RMT(to_RN[indexing].dest_register, dest_pointer);
-                        
-                    }
+                    // Get instruction from previous stage
+                    to_RN = DE.Get_and_Remove_Instructions_from_Register();
+                    // Add modified instruction from the pervious stage
+                    stall_DE = RN.Add_Instructions_to_Register(to_RN, sim_time);
+                    cout << "Prio Rename Stage: ";
+                    RN.Print_Instructions_in_Register();
                 }
-                // Add modified instruction from the pervious stage
-                for (unsigned int indexing = 0; indexing < to_RN.size(); indexing++)
-                {
-                    //cout << "Renamed: " << to_RN[indexing].seq_no << endl;
-                }
-                stall_DE = RN.Add_Instructions_to_Register(to_RN, sim_time);
-
-                // To let all instructions whose rob values are already ready
-                vector<bool> temp_values = ROB_controller.Get_All_ROB();
-                vector<int> registers_that_are_ready;
-                for(unsigned int indexing = 0; indexing < temp_values.size(); indexing++)
-                {
-                    if (temp_values[indexing] == 1)
-                        registers_that_are_ready.push_back((int) indexing);
-                }
-                if (registers_that_are_ready.size() != 0)
-                    RN.Set_Renamed_Register_Ready(registers_that_are_ready);
-                // Ends here  To let all instructions whose rob values are already ready
+                //else
+                //{stall_DE = 1;}
             }
         }
         else
         {
-            //cout << "Stalling DE" << endl;
-            //cout << "ROB availability: " << ROB_controller.Get_Availability_in_ROB() << endl;
+            cout << "Stalled RN " << endl;
+            cout << "Stalling DE" << endl;
+            cout << "ROB availability: " << ROB_controller.Get_Availability_in_ROB() << endl;
             stall_DE = 1;
         }
+
+        //else{stall_DE = 1;}
+        
+        cout << "Rename Stage: ";
+        RN.Print_Instructions_in_Register();
+
         //RN.Print_Timing();
         //cout << "---------------------------- End Rename Stage -------------------------------" << endl;
         /**************************************** End Rename Stage *****************************************/
@@ -563,16 +586,14 @@ int main (int argc, char* argv[])
                 to_DE = FE.Get_and_Remove_Instructions_from_Register();
                 // Add instruction from the pervious stage
                 stall_FE = DE.Add_Instructions_to_Register(to_DE, sim_time);
-                for (unsigned int indexing = 0; indexing < to_DE.size(); indexing++)
-                {
-                    //cout << "Decoded: " << to_DE[indexing].seq_no << endl;
-                }
+                cout << "Decode Stage: ";
+                DE.Print_Instructions_in_Register();
             }
         }
         else
         // If no space available in DE, then stall the FE stage
         {
-            //cout << "Stalling FE" << endl;
+            cout << "Stalling FE" << endl;
             stall_FE = 1;
         }
         //DE.Print_Timing();
@@ -594,7 +615,7 @@ int main (int argc, char* argv[])
                 {
                     to_FE.push_back(Instruction_Structure{trace_no, pc, op_type, dest, src1, src2, -1, -1, -1, 0, 0, {0, 0}});
                     fetched_count++;
-                    //printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+                    printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
                     // Need to add to the fetch stage
                     FE.Add_Instructions_to_Register(to_FE, sim_time);
                     to_FE.clear();
@@ -608,10 +629,11 @@ int main (int argc, char* argv[])
                 }
             }
         }
+        
         //FE.Print_Timing();
         //cout << "------------------------- End Fetch Stage -------------------------------" << endl;
         /**************************************** End Fetch Stage ******************************************/
-        /*
+        
         cout << "****************************************************************************************************************************" << endl;
         cout << "Sim time: " << sim_time << endl;
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
@@ -625,7 +647,7 @@ int main (int argc, char* argv[])
         // If ROB is not empty
         cout<< "Available elements in EX: " << EX.Get_Just_Availability() << endl;
         cout<< "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
-        */
+        
 
         /******************************************* Retire Stage ******************************************/
 
