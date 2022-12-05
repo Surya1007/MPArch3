@@ -231,7 +231,7 @@ public:
             {
                 issue_queue[indexing].instruction = instruction_to_be_added;
                 // Check for the ready bits of src1 and src2 registers
-                if (issue_queue[indexing].instruction.renamed_src1 == -1)
+                if ((issue_queue[indexing].instruction.renamed_src1 == -1) || (issue_queue[indexing].instruction.src1_ready_status == 1))
                 {
                     issue_queue[indexing].src1_ready_bit = 1;
                 }
@@ -239,7 +239,7 @@ public:
                 {
                     issue_queue[indexing].src1_ready_bit = 0;
                 }
-                if (issue_queue[indexing].instruction.renamed_src2 == -1)
+                if ((issue_queue[indexing].instruction.renamed_src2 == -1) || (issue_queue[indexing].instruction.src2_ready_status == 1))
                 {
                     issue_queue[indexing].src2_ready_bit = 1;
                 }
@@ -431,6 +431,15 @@ public:
         // Ensure that header and tail is only equal at initialization
     }
 
+    vector<bool> Get_All_ROB()
+    {
+        vector<bool> to_be_returned;
+        for(unsigned int indexing = 0; indexing < ROB.size(); indexing++)
+        {
+            to_be_returned.push_back(ROB[indexing].ready);
+        }
+        return to_be_returned;
+    }
 
 
     /********************** Add Instructions to ROB *************************************
@@ -484,9 +493,11 @@ public:
     {
         if (ROB[tail].ready == 1)
         {
-            if (no_of_available_elements_in_rob != 0)
+            if (no_of_available_elements_in_rob != rob_size)
             {
                 no_of_available_elements_in_rob++;
+                ROB[tail].destination = 0;
+                ROB[tail].ready = 0;
                 ++tail;
                 if (tail >= rob_size)
                     tail -= rob_size;
@@ -509,7 +520,7 @@ public:
     {
         if (ROB[tail].ready == 1)
         {
-            if (no_of_available_elements_in_rob != 0)
+            if (no_of_available_elements_in_rob != rob_size)
             {
                 return 1;
             }
@@ -629,6 +640,27 @@ public:
     }
 
 
+    void Set_Renamed_Register_Ready(vector<int> ready_registers)
+    {
+        for(unsigned int sub_indexing = 0; sub_indexing < ready_registers.size(); sub_indexing++)
+        {
+            for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+            {
+                if (available_elements_in_stage[indexing] == 0)
+                {
+                    //cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
+                    if (Pipeline_Registers[indexing].renamed_src1 == ready_registers[sub_indexing])
+                    {
+                        Pipeline_Registers[indexing].src1_ready_status = 1;
+                    }
+                    if (Pipeline_Registers[indexing].renamed_src2 == ready_registers[sub_indexing])
+                    {
+                        Pipeline_Registers[indexing].src2_ready_status = 1;
+                    }
+                }
+            }
+        }
+    }
     /********** Function to get, and remove instructions to pipeline register ***********
     * Any number of instructions can be removed,                                        *
     * Returns:                                                                          *
@@ -746,52 +778,6 @@ public:
         }
     }
 
-    vector<Instruction_Structure> Search_for_Almost_Completed_Instructions()
-    {
-        vector<Instruction_Structure> to_be_returned;
-        for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
-        {
-            cout << "Moshi moshi " << pipeline_stage << endl;
-            if (available_elements_in_stage[indexing] == 0)
-            {
-                if (pipeline_stage == 6)
-                {
-                    cout << "Checking: " << Pipeline_Registers[indexing].seq_no << " with timing: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
-                    if (Pipeline_Registers[indexing].op_type == 0)
-                    {
-                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
-                        {
-                            to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
-                        }
-                    }
-                    else if (Pipeline_Registers[indexing].op_type == 1)
-                    {
-                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
-                        {
-                            to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
-                        }
-                    }
-                    else //if (Pipeline_Registers[indexing].op_type == 2)
-                    {
-                        cout << "Simsim" << endl;
-                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
-                        {
-                            to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
-                            cout << "Setting" << endl;
-                        }
-                    }
-                }
-                else
-                {
-                    ready_to_move[indexing] = 1;
-                }
-            }
-        }
-        return to_be_returned;
-    }
 
     unsigned int Get_Availability_of_Pipeline()
     {
@@ -926,6 +912,55 @@ public:
             << "}" << endl;
         }
         cout << endl;
+    }
+
+
+
+    vector<Instruction_Structure> Search_for_Almost_Completed_Instructions()
+    {
+        vector<Instruction_Structure> to_be_returned;
+        for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+        {
+            cout << "Moshi moshi " << pipeline_stage << endl;
+            if (available_elements_in_stage[indexing] == 0)
+            {
+                if (pipeline_stage == 6)
+                {
+                    cout << "Checking: " << Pipeline_Registers[indexing].seq_no << " with timing: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
+                    if (Pipeline_Registers[indexing].op_type == 0)
+                    {
+                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
+                        {
+                            to_be_returned.push_back(Pipeline_Registers[indexing]);
+                            ready_to_move[indexing] = 1;
+                        }
+                    }
+                    else if (Pipeline_Registers[indexing].op_type == 1)
+                    {
+                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
+                        {
+                            to_be_returned.push_back(Pipeline_Registers[indexing]);
+                            ready_to_move[indexing] = 1;
+                        }
+                    }
+                    else //if (Pipeline_Registers[indexing].op_type == 2)
+                    {
+                        cout << "Simsim" << endl;
+                        if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
+                        {
+                            to_be_returned.push_back(Pipeline_Registers[indexing]);
+                            ready_to_move[indexing] = 1;
+                            cout << "Setting" << endl;
+                        }
+                    }
+                }
+                else
+                {
+                    ready_to_move[indexing] = 1;
+                }
+            }
+        }
+        return to_be_returned;
     }
 };
 
