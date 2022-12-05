@@ -129,7 +129,7 @@ int main (int argc, char* argv[])
     do{
         registers_to_set_ready.clear();
         RT.Increment_Time();
-        cout << "ROB availability is: " << ROB_controller.Get_Availability_in_ROB() << endl;
+        //cout << "ROB availability is: " << ROB_controller.Get_Availability_in_ROB() << endl;
         if (ROB_controller.Get_Availability_in_ROB() != params.rob_size)
         {
 
@@ -144,24 +144,24 @@ int main (int argc, char* argv[])
             {
                 tail_index = ROB_controller.Get_Tail_from_ROB();
                 Removal_Status = ROB_controller.Check_if_instruction_is_ready_to_retire();
-                cout << "Tail index is " << tail_index << endl;
+                //cout << "Tail index is " << tail_index << endl;
                 if (Removal_Status == 1)
                 {
                     completed_instructions.clear();
                     unsigned long PC_temp = ROB_controller.Get_PC_from_ROB(tail_index);
-                    cout << "Porching for " << hex << PC_temp << dec << endl;
+                    //cout << "Porching for " << hex << PC_temp << dec << endl;
                     Selective_Removal_Struct temp =  RT.Search_Specific_Register_using_PC(PC_temp);
                     Selective_Removal_Struct storing;
                     if (temp.success == 1)
                     {
-                        cout << "Ready to retire are: , while searching for "<< temp.instruction .seq_no << endl;
-                        RT.Print_Instructions_in_Register();
+                        //cout << "Ready to retire are: , while searching for "<< temp.instruction .seq_no << endl;
+                        //RT.Print_Instructions_in_Register();
                         storing = RT.Selective_Remove_Instruction(temp.instruction);
-                        cout << "So far so good with storing: " << storing.success << endl;
+                        //cout << "So far so good with storing: " << storing.success << endl;
                     }
                     else
                     {
-                        cout << "Error(Retire): Somethiong wrong in retiring instructions" << endl;
+                        //cout << "Error(Retire): Somethiong wrong in retiring instructions" << endl;
                     }
                     if (storing.success == 1)
                     {
@@ -187,7 +187,8 @@ int main (int argc, char* argv[])
                             total_no_retired_instructions++;
                             if (completed_instructions[indexing].dest_register != -1)
                             {
-                                registers_to_set_ready.push_back(completed_instructions[indexing].dest_register);
+                                //cout << "I am the shithole trying to push: " << completed_instructions[indexing].renamed_dest << endl;
+                                registers_to_set_ready.push_back(completed_instructions[indexing].renamed_dest);
                                 if (completed_instructions[indexing].renamed_dest == Rename_Map_Table_controller.Get_Rob_Tag_from_RMT(completed_instructions[indexing].dest_register).rob_tag)
                                 {
                                     Rename_Map_Table_controller.Reset_Rob_Tag_in_RMT(completed_instructions[indexing].dest_register);
@@ -202,7 +203,7 @@ int main (int argc, char* argv[])
                         Removal_Status = ROB_controller.Remove_Instruction_from_ROB();
                         if (Removal_Status == 0)
                         {
-                            cout << "Serious shit" << endl;
+                            //cout << "Serious shit" << endl;
                         }
                     }
                     else
@@ -230,8 +231,8 @@ int main (int argc, char* argv[])
             
             // Add instruction from the pervious stage
             stall_WB = RT.Add_Instructions_to_Register(to_RT, sim_time);
-            cout << "Retire stage: ";
-            RT.Print_Instructions_in_Register();
+            //cout << "Retire stage: ";
+            //RT.Print_Instructions_in_Register();
         }
         //RT.Print_Timing();
         // Change the ROB tail pointer
@@ -256,15 +257,15 @@ int main (int argc, char* argv[])
                     
                     for(unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
                     {
-                        cout << "Broadcasting: " << to_WB[indexing].renamed_dest << " by seq: " << to_WB[indexing].seq_no << endl;
+                        //cout << "Broadcasting: " << to_WB[indexing].renamed_dest << " by seq: " << to_WB[indexing].seq_no << endl;
                         registers_to_set_ready.push_back(to_WB[indexing].renamed_dest);
                         IQ_controller.Set_SRC_Ready_Bit(to_WB[indexing].renamed_dest);
                         //cout << "Moshi: " << to_WB[indexing].seq_no << "\t" << to_WB[indexing].renamed_dest << endl;
                         ROB_controller.Mark_Instruction_Ready(to_WB[indexing].renamed_dest);
                         //cout << "WriteBack stage: " << to_WB[indexing].seq_no << endl;
                     }
-                    cout << "WriteBack stage: ";
-                    WB.Print_Instructions_in_Register(); 
+                    //cout << "WriteBack stage: ";
+                    //WB.Print_Instructions_in_Register(); 
                     stall_EX = WB.Add_Instructions_to_Register(to_WB, sim_time);    
 
                 }
@@ -306,7 +307,7 @@ int main (int argc, char* argv[])
 
             for (unsigned int indexing = 0; indexing < to_IS.size(); indexing++)
             {
-                cout << "Issue stage: " << to_IS[indexing].seq_no << endl;
+                //cout << "Issue stage: " << to_IS[indexing].seq_no << endl;
             }
             //cout << "SIZE is : " << to_EX.size() << endl;
 
@@ -357,7 +358,7 @@ int main (int argc, char* argv[])
         }
         else
         {
-            cout << "Stalling IS" << endl;
+            //cout << "Stalling IS" << endl;
             stall_IS = 0;
         }
         //EX.Print_Timing();
@@ -385,7 +386,7 @@ int main (int argc, char* argv[])
                 {
                     for(unsigned int indexing = 0; indexing < params.width; indexing++)
                     {
-                        cout << "Moshi " << to_IS[indexing].src1_ready_status << to_IS[indexing].src1_ready_status << endl;
+                        //cout << "Moshi " << to_IS[indexing].src1_ready_status << to_IS[indexing].src1_ready_status << endl;
                         IQ_controller.Add_Instruction_to_IQ(to_IS[indexing]);
                     }
                 }
@@ -405,7 +406,7 @@ int main (int argc, char* argv[])
         }
         else
         {
-            cout << "Stalling DI" << endl;
+            //cout << "Stalling DI" << endl;
             stall_DI = 0;
         }
         // Another possibility for a bypass
@@ -427,15 +428,15 @@ int main (int argc, char* argv[])
 
                 // Add instruction from the pervious stage
                 stall_RR = DI.Add_Instructions_to_Register(to_DI, sim_time);
-                cout << "Dispatch Stage: ";
-                DI.Print_Instructions_in_Register();
+                //cout << "Dispatch Stage: ";
+                //DI.Print_Instructions_in_Register();
 
                 // Include bypass here
             }
         }
         else
         {
-            cout << "Stalling RR" << endl;
+            //cout << "Stalling RR" << endl;
             stall_RR = 1;
         }
         // Another possibility for a bypass
@@ -456,7 +457,7 @@ int main (int argc, char* argv[])
                 to_RR = RN.Get_and_Remove_Instructions_from_Register();
                 for (unsigned int indexing = 0; indexing < to_RR.size(); indexing++)
                 {
-                    cout << "Register read: " << to_RR[indexing].seq_no << endl;
+                    //cout << "Register read: " << to_RR[indexing].seq_no << endl;
                 }
                 // Add instruction from the pervious stage
                 stall_RN = RR.Add_Instructions_to_Register(to_RR, sim_time);
@@ -469,7 +470,7 @@ int main (int argc, char* argv[])
         }
         else
         {
-            cout << "Stalling RN" << endl;
+            //cout << "Stalling RN" << endl;
            stall_RN = 1;
         }
         // Another possibility for a bypass
@@ -523,7 +524,7 @@ int main (int argc, char* argv[])
                 // Add modified instruction from the pervious stage
                 for (unsigned int indexing = 0; indexing < to_RN.size(); indexing++)
                 {
-                    cout << "Renamed: " << to_RN[indexing].seq_no << endl;
+                    //cout << "Renamed: " << to_RN[indexing].seq_no << endl;
                 }
                 stall_DE = RN.Add_Instructions_to_Register(to_RN, sim_time);
 
@@ -542,8 +543,8 @@ int main (int argc, char* argv[])
         }
         else
         {
-            cout << "Stalling DE" << endl;
-            cout << "ROB availability: " << ROB_controller.Get_Availability_in_ROB() << endl;
+            //cout << "Stalling DE" << endl;
+            //cout << "ROB availability: " << ROB_controller.Get_Availability_in_ROB() << endl;
             stall_DE = 1;
         }
         //RN.Print_Timing();
@@ -564,14 +565,14 @@ int main (int argc, char* argv[])
                 stall_FE = DE.Add_Instructions_to_Register(to_DE, sim_time);
                 for (unsigned int indexing = 0; indexing < to_DE.size(); indexing++)
                 {
-                    cout << "Decoded: " << to_DE[indexing].seq_no << endl;
+                    //cout << "Decoded: " << to_DE[indexing].seq_no << endl;
                 }
             }
         }
         else
         // If no space available in DE, then stall the FE stage
         {
-            cout << "Stalling FE" << endl;
+            //cout << "Stalling FE" << endl;
             stall_FE = 1;
         }
         //DE.Print_Timing();
@@ -593,7 +594,7 @@ int main (int argc, char* argv[])
                 {
                     to_FE.push_back(Instruction_Structure{trace_no, pc, op_type, dest, src1, src2, -1, -1, -1, 0, 0, {0, 0}});
                     fetched_count++;
-                    printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+                    //printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
                     // Need to add to the fetch stage
                     FE.Add_Instructions_to_Register(to_FE, sim_time);
                     to_FE.clear();
@@ -610,6 +611,7 @@ int main (int argc, char* argv[])
         //FE.Print_Timing();
         //cout << "------------------------- End Fetch Stage -------------------------------" << endl;
         /**************************************** End Fetch Stage ******************************************/
+        /*
         cout << "****************************************************************************************************************************" << endl;
         cout << "Sim time: " << sim_time << endl;
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
@@ -619,12 +621,13 @@ int main (int argc, char* argv[])
         cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
         ROB_controller.Print_ROB();
         cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-        /******************************************* Retire Stage ******************************************/
         //cout << "---------------------------- Retire Stage -------------------------------" << endl;
         // If ROB is not empty
         cout<< "Available elements in EX: " << EX.Get_Just_Availability() << endl;
         cout<< "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
+        */
 
+        /******************************************* Retire Stage ******************************************/
 
 
 

@@ -254,7 +254,7 @@ public:
         }
 
         // For checking_printing
-        cout << "\n Error(IQ): Issuequeue is full, so please check if there is already any barrier before this: " << available_iq_elements << endl;
+        //cout << "\n Error(IQ): Issuequeue is full, so please check if there is already any barrier before this: " << available_iq_elements << endl;
         // End checking_printing
         return 0;
     }
@@ -332,7 +332,7 @@ public:
         }
         if (nothing_found == 1)
         {
-            cout << "Error(IQ): Check for better barrier possibility" << endl;
+            //cout << "Error(IQ): Check for better barrier possibility" << endl;
         }
         return Instructions_to_be_returned;
     }
@@ -360,11 +360,11 @@ public:
                 }
                 else
                 {
-                    cout << "Uhhhh " << seq_no << endl;
+                    //cout << "Uhhhh " << seq_no << endl;
                 }
             }
         }
-        cout << "Error(IQ): Trying to remove instruction that is not part of IQ" << endl;
+        //cout << "Error(IQ): Trying to remove instruction that is not part of IQ" << endl;
         return Instruction_to_be_returned;
     }
 
@@ -383,7 +383,7 @@ public:
             // Set the ready bits of only that are valid
             if (issue_queue[indexing].valid_bit == 1)
             {
-                cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
+                //cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
                 // Sets the src1 ready bit if the renamed register is src_register
                 if (issue_queue[indexing].instruction.renamed_src1 == src_register)
                 {
@@ -396,7 +396,7 @@ public:
                 }
             }
         }
-        cout << "To set: " << src_register << endl;
+        //cout << "To set: " << src_register << endl;
         //cout << "Error(IQ): Unable to find the required instruction to set the ready bits" << endl;
     }
 
@@ -634,7 +634,7 @@ public:
         }
         else
         {
-            cout << "Error(Pipeline): Better barrier can be kept" << endl;
+            //cout << "Error(Pipeline): Better barrier can be kept" << endl;
             return 1;
         }
     }
@@ -644,6 +644,7 @@ public:
     {
         for(unsigned int sub_indexing = 0; sub_indexing < ready_registers.size(); sub_indexing++)
         {
+            //cout << "Trying to set: " << ready_registers[sub_indexing] << endl;
             for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
             {
                 if (available_elements_in_stage[indexing] == 0)
@@ -839,7 +840,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
                     {
-                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -850,7 +851,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 2)
                     {
-                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -861,7 +862,7 @@ public:
                 {
                     if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 5)
                     {
-                        cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
+                        //cout << "Pushing back instruction: " << Pipeline_Registers[indexing].seq_no << endl;
                         to_be_returned.push_back(Pipeline_Registers[indexing]);
                         available_elements_in_stage[indexing] = 1;
                         available_elements_in_stage_count++;
@@ -921,12 +922,12 @@ public:
         vector<Instruction_Structure> to_be_returned;
         for(unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
-            cout << "Moshi moshi " << pipeline_stage << endl;
+            //cout << "Moshi moshi " << pipeline_stage << endl;
             if (available_elements_in_stage[indexing] == 0)
             {
                 if (pipeline_stage == 6)
                 {
-                    cout << "Checking: " << Pipeline_Registers[indexing].seq_no << " with timing: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
+                    //cout << "Checking: " << Pipeline_Registers[indexing].seq_no << " with timing: " << Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] << endl;
                     if (Pipeline_Registers[indexing].op_type == 0)
                     {
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
@@ -945,12 +946,12 @@ public:
                     }
                     else //if (Pipeline_Registers[indexing].op_type == 2)
                     {
-                        cout << "Simsim" << endl;
+                        //cout << "Simsim" << endl;
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
                             ready_to_move[indexing] = 1;
-                            cout << "Setting" << endl;
+                            //cout << "Setting" << endl;
                         }
                     }
                 }
