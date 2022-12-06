@@ -99,11 +99,10 @@ int main(int argc, char *argv[])
     vector<Instruction_Structure> TempInstructions_to_EX;
     vector<Selective_Removal_Struct> temp_structure;
 
-    // bool ready_to_retire = 0;
+    bool ready_to_retire = 1;
     // unsigned int lanja_called = 0;
     bool starting = 1;
     vector<int> registers_to_set_ready;
-    bool stall_FE = 0;
     /* Completed Initialization simulation environment */
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,6 +240,8 @@ int main(int argc, char *argv[])
                     // IQ_controller.Set_SRC_Ready_Bit(to_RT[indexing].renamed_dest);
                 }
                 RT.Add_Instructions_to_Register(to_RT, sim_time);
+                for (unsigned int indexing = 0; indexing < to_RT.size(); indexing++)
+                    RT.Set_Ready_to_Move_Instruction(to_RT[indexing].seq_no);
             }
         }
         if (DEBUG == 1)
@@ -262,6 +263,8 @@ int main(int argc, char *argv[])
             if (to_WB.size() != 0)
             {
                 WB.Add_Instructions_to_Register(to_WB, sim_time);
+                for (unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
+                    WB.Set_Ready_to_Move_Instruction(to_WB[indexing].seq_no);
                 for (unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
                 {
                     // Notify registers in IQ
@@ -317,6 +320,8 @@ int main(int argc, char *argv[])
                         }
                     }
                     EX.Add_Instructions_to_Register(to_EX, sim_time);
+                    for (unsigned int indexing = 0; indexing < to_EX.size(); indexing++)
+                        EX.Set_Ready_to_Move_Instruction(to_EX[indexing].seq_no);
                 }
             }
         }
@@ -347,6 +352,8 @@ int main(int argc, char *argv[])
                     IQ_controller.Add_Instruction_to_IQ(to_IS[indexing]);
                 }
                 IS.Add_Instructions_to_Register(to_IS, sim_time);
+                for (unsigned int indexing = 0; indexing < to_IS.size(); indexing++)
+                    IS.Set_Ready_to_Move_Instruction(to_IS[indexing].seq_no);
                 // Notifying registers in Issue stage
                 if (registers_to_set_ready.size() != 0)
                 {
@@ -380,12 +387,14 @@ int main(int argc, char *argv[])
                 {
                     DI.Set_Renamed_Register_Ready(registers_to_set_ready);
                 }
+                for (unsigned int indexing = 0; indexing < to_DI.size(); indexing++)
+                    DI.Set_Ready_to_Move_Instruction(to_DI[indexing].seq_no);
             }
         }
         else
         {
             // cout << "Yallaa" << endl;
-            stall_FE = 1;
+            // STALL = 1;
         }
         if (DEBUG == 1)
         {
@@ -441,7 +450,13 @@ int main(int argc, char *argv[])
                 {
                     RR.Set_Renamed_Register_Ready(registers_to_set_ready);
                 }
-                stall_FE = 0;
+                for (unsigned int indexing = 0; indexing < to_RR.size(); indexing++)
+                    RR.Set_Ready_to_Move_Instruction(to_RR[indexing].seq_no);
+                STALL = 0;
+            }
+            else
+            {
+                // cout << "Koun" << endl;
             }
         }
         if (DEBUG == 1)
@@ -466,6 +481,8 @@ int main(int argc, char *argv[])
                 {
                     RN.Set_Renamed_Register_Ready(registers_to_set_ready);
                 }
+                for (unsigned int indexing = 0; indexing < to_RN.size(); indexing++)
+                    RN.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
             }
         }
         if (DEBUG == 1)
@@ -485,6 +502,11 @@ int main(int argc, char *argv[])
             {
                 to_DE = FE.Get_and_Remove_Instructions_from_Register();
                 DE.Add_Instructions_to_Register(to_DE, sim_time);
+                if (to_DE.size() != 0)
+                {
+                    for (unsigned int indexing = 0; indexing < to_DE.size(); indexing++)
+                        DE.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
+                }
             }
             else
             {
@@ -499,9 +521,41 @@ int main(int argc, char *argv[])
         /******************************************* END FETCH *****************************************************/
         /*********************************************** TEST *******************************************************/
         if (DEBUG == 1)
-            cout << "No problem at " << STALL << endl;
+        {
+            cout << "No problem at " << ROB_controller.Get_Availability_in_ROB() << endl;
+            cout << "RR availability is: " << RR.Get_Status_of_Pipeline() << endl;
+            cout << "RN availability is: " << RN.Get_Status_of_Pipeline() << endl;
+            cout << "DI availability is: " << DI.Get_Status_of_Pipeline() << endl;
+            // cout << "RR availability is: " << RR.Get_Availability_of_Pipeline() << endl;
+        }
         /********************************************* END TEST *****************************************************/
-        if ((STALL != 1) || (ROB_controller.Get_Availability_in_ROB() != 0))
+
+        unsigned int rob_tail = ROB_controller.Get_Tail_from_ROB();
+        unsigned int to_be_remove_seq = ROB_controller.Get_SEQ_from_ROB(rob_tail);
+        Selective_Removal_Struct Removal_Status = RT.Search_Specific_Register_using_seq(to_be_remove_seq);
+        if (Removal_Status.success == 1)
+        {
+            if (DEBUG == 1)
+                cout << "Can Fetch" << endl;
+            ready_to_retire = 1;
+        }
+        else
+        {
+            if (DEBUG == 1)
+                cout << "No Fetch" << endl;
+            ready_to_retire = 0;
+        }
+
+        if ((ready_to_retire == 0) && (ROB_controller.Get_Availability_in_ROB() == 0))
+        {
+            STALL = 1;
+        }
+        else
+        {
+            STALL = 0;
+        }
+
+        if ((STALL != 1))
         {
             uint8_t fetched_count = 0;
             while (fetched_count < params.width)
@@ -514,6 +568,8 @@ int main(int argc, char *argv[])
                         printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); // Print to check if inputs have been read correctly
                     // Need to add to the fetch stage
                     FE.Add_Instructions_to_Register(to_FE, sim_time);
+                    for (unsigned int indexing = 0; indexing < to_FE.size(); indexing++)
+                        FE.Set_Ready_to_Move_Instruction(to_FE[indexing].seq_no);
                     starting = 0;
                     to_FE.clear();
                     trace_no++;
@@ -545,6 +601,11 @@ int main(int argc, char *argv[])
         /************************************ Advance cycle calculation ************************************/
         // Increments the simulation time
         ++sim_time;
+        if (trace_no >= 9999)
+        {
+            fetched_all_instructions = 1;
+        }
+        //cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
         // Check if simulation is completed
         if ((total_no_retired_instructions >= 10000) && (fetched_all_instructions == 1))
         {

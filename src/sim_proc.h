@@ -596,6 +596,7 @@ public:
                     {
                         ready_to_move[indexing] = 1;
                     }
+                    ready_to_move[indexing] = 0;
                     no_of_added_elements++;
                 }
                 if (no_of_added_elements == instruction_to_be_added.size())
@@ -770,6 +771,19 @@ public:
         {
             return -1;
         }
+    }
+
+    bool Set_Ready_to_Move_Instruction(unsigned int seq_number)
+    {
+        for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+        {
+            if (Pipeline_Registers[indexing].seq_no == seq_number)
+            {
+                ready_to_move[indexing] = 1;
+                return 1;
+            }
+        }
+        return 0;
     }
 
     void Increment_Time()
