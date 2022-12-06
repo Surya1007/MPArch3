@@ -262,7 +262,7 @@ public:
                 }
                 if (found != 1)
                 {
-                    // cout << "Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
+                    //cout << "FOre seq no: " << issue_queue[indexing].instruction.seq_no << ", and Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
                     //  Checking if both the src registers are ready
                     if ((issue_queue[indexing].src1_ready_bit == 1) && (issue_queue[indexing].src2_ready_bit == 1))
                     {
@@ -360,7 +360,7 @@ public:
             // Set the ready bits of only that are valid
             if (issue_queue[indexing].valid_bit == 1)
             {
-                // cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
+                //cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
                 //  Sets the src1 ready bit if the renamed register is src_register
                 if (issue_queue[indexing].instruction.renamed_src1 == src_register)
                 {
@@ -520,6 +520,18 @@ public:
         ROB[rob_to_be_marked_as_rdy].ready = 1;
     }
 
+    bool Check_Status_of_Entry(unsigned int rob_index)
+    {
+        if (ROB[rob_index].ready == 1)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
     unsigned long int Get_Availability_in_ROB()
     {
         return no_of_available_elements_in_rob;
@@ -650,7 +662,7 @@ public:
             {
                 if (available_elements_in_stage[indexing] == 0)
                 {
-                    // cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
+                    //cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
                     if (Pipeline_Registers[indexing].renamed_src1 == ready_registers[sub_indexing])
                     {
                         // cout << "Good1" << endl;
@@ -966,6 +978,7 @@ public:
     vector<Instruction_Structure> Search_for_Almost_Completed_Instructions()
     {
         vector<Instruction_Structure> to_be_returned;
+        to_be_returned.clear();
         for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             // cout << "Moshi moshi " << pipeline_stage << endl;
@@ -979,7 +992,7 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
+                            //ready_to_move[indexing] = 1;
                         }
                     }
                     else if (Pipeline_Registers[indexing].op_type == 1)
@@ -987,7 +1000,7 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
+                            //ready_to_move[indexing] = 1;
                         }
                     }
                     else // if (Pipeline_Registers[indexing].op_type == 2)
@@ -996,7 +1009,7 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            ready_to_move[indexing] = 1;
+                            //ready_to_move[indexing] = 1;
                             // cout << "Setting" << endl;
                         }
                     }

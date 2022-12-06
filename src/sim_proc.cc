@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
                             registers_to_set_ready.push_back(Removed_Instruction.instruction.renamed_dest);
 
                             if (DEBUG == 1)
-                                cout << "Broadcasting: " << Removed_Instruction.instruction.renamed_dest << endl;
+                                cout << "Broadcasting: Here: " << Removed_Instruction.instruction.renamed_dest << endl;
                             no_of_retired_instructions++;
                             // Need to verify
                             if (Removed_Instruction.instruction.dest_register != -1)
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
                     ROB_controller.Mark_Instruction_Ready(to_RT[indexing].renamed_dest);
                     registers_to_set_ready.push_back(to_RT[indexing].renamed_dest);
                     // May or may not be required
-                    // IQ_controller.Set_SRC_Ready_Bit(to_RT[indexing].renamed_dest);
+                    IQ_controller.Set_SRC_Ready_Bit(to_RT[indexing].renamed_dest);
                 }
                 RT.Add_Instructions_to_Register(to_RT, sim_time);
                 for (unsigned int indexing = 0; indexing < to_RT.size(); indexing++)
@@ -267,13 +267,13 @@ int main(int argc, char *argv[])
                     WB.Set_Ready_to_Move_Instruction(to_WB[indexing].seq_no);
                 for (unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
                 {
+                    if (DEBUG == 1)
+                        cout << "Broadcasting: " << to_WB[indexing].renamed_dest << endl;
                     // Notify registers in IQ
                     IQ_controller.Set_SRC_Ready_Bit(to_WB[indexing].renamed_dest);
                     registers_to_set_ready.push_back(to_WB[indexing].renamed_dest);
                     // Notify registers in DI
                     // Notify registers in RR
-                    if (DEBUG == 1)
-                        cout << "Broadcasting: " << to_WB[indexing].renamed_dest << endl;
                 }
             }
         }
@@ -425,6 +425,8 @@ int main(int argc, char *argv[])
                         if (src1.valid == 1)
                         {
                             to_RR[indexing].renamed_src1 = src1.rob_tag;
+                            // Need to check ROB if the element is ready or not
+                            to_RR[indexing].src1_ready_status = ROB_controller.Check_Status_of_Entry(src1.rob_tag);
                         }
                     }
                     // Rename Source 2
@@ -434,6 +436,7 @@ int main(int argc, char *argv[])
                         if (src2.valid == 1)
                         {
                             to_RR[indexing].renamed_src2 = src2.rob_tag;
+                            to_RR[indexing].src2_ready_status = ROB_controller.Check_Status_of_Entry(src2.rob_tag);
                         }
                     }
                     // Rename Destination
@@ -445,7 +448,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 RR.Add_Instructions_to_Register(to_RR, sim_time);
-                // cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
+                //cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
                 if (registers_to_set_ready.size() != 0)
                 {
                     RR.Set_Renamed_Register_Ready(registers_to_set_ready);
@@ -605,8 +608,8 @@ int main(int argc, char *argv[])
         {
             fetched_all_instructions = 1;
         }
-        //cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
-        // Check if simulation is completed
+        // cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
+        //  Check if simulation is completed
         if ((total_no_retired_instructions >= 10000) && (fetched_all_instructions == 1))
         {
             continue_sim = 0;
