@@ -65,6 +65,7 @@ typedef struct Individual_ROB_struct
     bool exception;
     bool misprediction;
     unsigned int PC;
+    unsigned int seq_no;
 } Individual_ROB_struct;
 
 /***************************** Individual Issue Queue *******************************
@@ -417,11 +418,12 @@ public:
      *          1: If operation is successfull                                          *
      *          0: ROB is full, not possible to add instructions in this cycle          *
      ******************** End Add Instructions to ROB ***********************************/
-    unsigned int Add_Instruction_to_ROB(int corresponding_register, unsigned long PC)
+    unsigned int Add_Instruction_to_ROB(int corresponding_register, unsigned long PC, unsigned int seq_no)
     {
         // If reached the end of rob, set the header to 0
         ROB[header].PC = PC;
         ROB[header].destination = corresponding_register;
+        ROB[header].seq_no = seq_no;
         no_of_available_elements_in_rob--;
         // cout << "Header value is " << header << endl;
         return header;
@@ -470,7 +472,7 @@ public:
                 tail++;
                 if (tail >= rob_size)
                     tail -= rob_size;
-                // cout << "Okay, tail value is " << tail << endl;
+                //cout << "Okay, tail value is " << tail << endl;
                 return 1;
             }
             else
@@ -487,6 +489,7 @@ public:
 
     bool Check_if_instruction_is_ready_to_retire()
     {
+        //cout << "BITCH IS " << tail << endl;
         if (ROB[tail].ready == 1)
         {
             if (no_of_available_elements_in_rob != rob_size)
@@ -522,9 +525,14 @@ public:
 
     unsigned int Get_Tail_from_ROB()
     {
+        //cout << "Tail is: " << tail << endl;
         return tail;
     }
 
+    unsigned int Get_SEQ_from_ROB(unsigned int rob_value)
+    {
+        return ROB[rob_value].seq_no;
+    }
     unsigned long Get_PC_from_ROB(unsigned int rob_value)
     {
         return ROB[rob_value].PC;
@@ -609,6 +617,7 @@ public:
             return Pipeline_Registers;
         else
         {
+            cout << "Neeabba" << endl;
             temp.clear();
             return temp;
         }
@@ -638,13 +647,15 @@ public:
             {
                 if (available_elements_in_stage[indexing] == 0)
                 {
-                    // cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
+                    //cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
                     if (Pipeline_Registers[indexing].renamed_src1 == ready_registers[sub_indexing])
                     {
+                        //cout << "Good1" << endl;
                         Pipeline_Registers[indexing].src1_ready_status = 1;
                     }
                     if (Pipeline_Registers[indexing].renamed_src2 == ready_registers[sub_indexing])
                     {
+                        //cout << "Good2" << endl;
                         Pipeline_Registers[indexing].src2_ready_status = 1;
                     }
                 }
@@ -859,6 +870,7 @@ public:
     Selective_Removal_Struct Search_Specific_Register_using_PC(unsigned long PC_address)
     {
         Selective_Removal_Struct to_be_returned;
+        to_be_returned.success = 0;
         for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             if (available_elements_in_stage[indexing] == 0)
@@ -867,6 +879,29 @@ public:
                 {
                     to_be_returned.success = 1;
                     to_be_returned.instruction = Pipeline_Registers[indexing];
+                    //cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
+                    //cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
+                    return to_be_returned;
+                }
+            }
+        }
+        return to_be_returned;
+    }
+
+    Selective_Removal_Struct Search_Specific_Register_using_seq(unsigned int SEQ)
+    {
+        Selective_Removal_Struct to_be_returned;
+        to_be_returned.success = 0;
+        for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
+        {
+            if (available_elements_in_stage[indexing] == 0)
+            {
+                if (Pipeline_Registers[indexing].seq_no == SEQ)
+                {
+                    to_be_returned.success = 1;
+                    to_be_returned.instruction = Pipeline_Registers[indexing];
+                    //cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
+                    //cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
                     return to_be_returned;
                 }
             }

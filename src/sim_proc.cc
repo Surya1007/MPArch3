@@ -139,10 +139,12 @@ int main(int argc, char *argv[])
                 {
 
                     completed_instructions.clear();
-                    unsigned long PC_temp = ROB_controller.Get_PC_from_ROB(tail_index);
-                    // cout << "Porching for " << hex << PC_temp << dec << endl;
-                    Selective_Removal_Struct temp = RT.Search_Specific_Register_using_PC(PC_temp);
+                    unsigned int PC_temp = ROB_controller.Get_SEQ_from_ROB(tail_index);
+                    if (DEBUG == 1)
+                        cout << "Porching for " << PC_temp << endl;
+                    Selective_Removal_Struct temp = RT.Search_Specific_Register_using_seq(PC_temp);
                     Selective_Removal_Struct storing;
+                    storing.success = 0;
                     if (temp.success == 1)
                     {
 
@@ -157,7 +159,7 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        cout << "Error(Retire): Somethiong wrong in retiring instructions" << endl;
+                        //cout << "Error(Retire): Somethiong wrong in retiring instructions" << endl;
                     }
                     if (storing.success == 1)
                     {
@@ -245,7 +247,8 @@ int main(int argc, char *argv[])
             {
                 for (unsigned int indexing = 0; indexing < to_WB.size(); indexing++)
                 {
-                    // cout << "Broadcasting: " << to_WB[indexing].renamed_dest << " by seq: " << to_WB[indexing].seq_no << endl;
+                    if (DEBUG == 1)
+                        cout << "Broadcasting: " << to_WB[indexing].renamed_dest << " by seq: " << to_WB[indexing].seq_no << endl;
                     registers_to_set_ready.push_back(to_WB[indexing].renamed_dest);
                     IQ_controller.Set_SRC_Ready_Bit(to_WB[indexing].renamed_dest);
                     // cout << "Moshi: " << to_WB[indexing].seq_no << "\t" << to_WB[indexing].renamed_dest << endl;
@@ -334,6 +337,20 @@ int main(int argc, char *argv[])
             if (DEBUG == 1)
                 cout << "Stalling IS" << endl;
             stall_IS = 0;
+        }
+
+        if (EX.Get_Just_Availability() != (params.width * 5))
+        {
+            vector<Instruction_Structure> temp_registers = EX.Search_for_Almost_Completed_Instructions();
+            if (temp_registers.size() != 0)
+            {
+                for (unsigned int indexing = 0; indexing < temp_registers.size(); indexing++)
+                {
+                    if (DEBUG == 1)
+                        cout << "Torturing: " << temp_registers[indexing].renamed_dest << endl;
+                    registers_to_set_ready.push_back(temp_registers[indexing].renamed_dest);
+                }
+            }
         }
         // EX.Print_Timing();
         // cout << "---------------------------- End Execute Stage -------------------------------" << endl;
@@ -428,13 +445,19 @@ int main(int argc, char *argv[])
         /****************************************** Regread Stage ******************************************/
         // cout << "---------------------------- Regread Stage -------------------------------" << endl;
         RN.Increment_Time();
+        if (RN.Get_Just_Availability() != params.width)
+        {
+            // cout << "Yallaaaaaa" << endl;
+            if (registers_to_set_ready.size() != 0)
+                RN.Set_Renamed_Register_Ready(registers_to_set_ready);
+            // cout << "****************************************" << endl;
+        }
+
         if ((stall_RR != 1) && (RR.Get_Availability_of_Pipeline() == params.width))
         {
             if ((RN.Get_Status_of_Pipeline() != -1) && (unsuccessfull_rename == 0))
             {
                 // Get instruction from previous stage
-                if (registers_to_set_ready.size() != 0)
-                    RN.Set_Renamed_Register_Ready(registers_to_set_ready);
                 to_RR = RN.Get_and_Remove_Instructions_from_Register();
                 empty_stage = 1;
                 // Add instruction from the pervious stage
@@ -492,7 +515,7 @@ int main(int argc, char *argv[])
                     for (unsigned int indexing = 0; indexing < params.width; indexing++)
                     {
                         //  Allocate an entry in ROB for instructions in order
-                        unsigned int dest_pointer = ROB_controller.Add_Instruction_to_ROB(temp_regs[indexing].dest_register, temp_regs[indexing].PC);
+                        unsigned int dest_pointer = ROB_controller.Add_Instruction_to_ROB(temp_regs[indexing].dest_register, temp_regs[indexing].PC, temp_regs[indexing].seq_no);
                         ROB_controller.Increment_header();
                         // Add the renamed source registers to srcs1
                         if (temp_regs[indexing].src1_register != -1)
@@ -515,6 +538,8 @@ int main(int argc, char *argv[])
                         // Add the renamed destination register to dests
                         temp_regs[indexing].renamed_dest = dest_pointer;
                         RN.Add_Just_Registers(temp_regs);
+                        if (registers_to_set_ready.size() != 0)
+                            RN.Set_Renamed_Register_Ready(registers_to_set_ready);
                         // renamed = 1;
                         if (DEBUG == 1)
                         {
@@ -554,8 +579,6 @@ int main(int argc, char *argv[])
             if (registers_that_are_ready.size() != 0)
                 RN.Set_Renamed_Register_Ready(registers_that_are_ready);
             // Ends here  To let all instructions whose rob values are already ready
-            if (registers_to_set_ready.size() != 0)
-                RN.Set_Renamed_Register_Ready(registers_to_set_ready);
         }
         else
         {
@@ -566,6 +589,11 @@ int main(int argc, char *argv[])
                 cout << "ROB availability: " << ROB_controller.Get_Availability_in_ROB() << endl;
             }
             stall_DE = 1;
+        }
+        if (RN.Get_Just_Availability() != params.width)
+        {
+            if (registers_to_set_ready.size() != 0)
+                RN.Set_Renamed_Register_Ready(registers_to_set_ready);
         }
 
         // else{stall_DE = 1;}
