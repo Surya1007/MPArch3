@@ -246,6 +246,7 @@ public:
         unsigned int mini_seq_no = 100000000;
         unsigned int smallest_seq = 0;
         Selective_Removal_Struct instruction_temp;
+        instruction_temp.success = 0;
         for (unsigned int indexing = 0; indexing < issue_queue.size(); indexing++)
         {
             // Search through the valid bits only
@@ -291,6 +292,7 @@ public:
         // Can only add instructions of size size_to_get
         bool nothing_found = 1;
         vector<unsigned int> elements_found;
+        elements_found.clear();
         while (Instructions_to_be_returned.size() <= available_execution)
         {
             // Searching through valid instructions in the IQ
@@ -308,7 +310,7 @@ public:
         }
         if (nothing_found == 1)
         {
-            // cout << "Error(IQ): Check for better barrier possibility" << endl;
+            //    cout << "Error(IQ): Check for better barrier possibility" << endl;
         }
         return Instructions_to_be_returned;
     }
@@ -472,7 +474,7 @@ public:
                 tail++;
                 if (tail >= rob_size)
                     tail -= rob_size;
-                //cout << "Okay, tail value is " << tail << endl;
+                // cout << "Okay, tail value is " << tail << endl;
                 return 1;
             }
             else
@@ -489,7 +491,7 @@ public:
 
     bool Check_if_instruction_is_ready_to_retire()
     {
-        //cout << "BITCH IS " << tail << endl;
+        // cout << "BITCH IS " << tail << endl;
         if (ROB[tail].ready == 1)
         {
             if (no_of_available_elements_in_rob != rob_size)
@@ -525,7 +527,7 @@ public:
 
     unsigned int Get_Tail_from_ROB()
     {
-        //cout << "Tail is: " << tail << endl;
+        // cout << "Tail is: " << tail << endl;
         return tail;
     }
 
@@ -647,15 +649,15 @@ public:
             {
                 if (available_elements_in_stage[indexing] == 0)
                 {
-                    //cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
+                    // cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
                     if (Pipeline_Registers[indexing].renamed_src1 == ready_registers[sub_indexing])
                     {
-                        //cout << "Good1" << endl;
+                        // cout << "Good1" << endl;
                         Pipeline_Registers[indexing].src1_ready_status = 1;
                     }
                     if (Pipeline_Registers[indexing].renamed_src2 == ready_registers[sub_indexing])
                     {
-                        //cout << "Good2" << endl;
+                        // cout << "Good2" << endl;
                         Pipeline_Registers[indexing].src2_ready_status = 1;
                     }
                 }
@@ -803,21 +805,37 @@ public:
         for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
         {
             if (available_elements_in_stage[indexing] == 0)
-                cout << Pipeline_Registers[indexing].seq_no << " with destination: " << Pipeline_Registers[indexing].renamed_dest << "\t" << Pipeline_Registers[indexing].renamed_src1 << "\t" << Pipeline_Registers[indexing].renamed_src2 << endl;
+            {
+                cout << Pipeline_Registers[indexing].seq_no << " with renamed destination: " << Pipeline_Registers[indexing].renamed_dest << "\t" << Pipeline_Registers[indexing].renamed_src1 << "\t" << Pipeline_Registers[indexing].renamed_src2 << endl;
+                cout << Pipeline_Registers[indexing].seq_no << " with destination: " << Pipeline_Registers[indexing].dest_register << "\t" << Pipeline_Registers[indexing].src1_register << "\t" << Pipeline_Registers[indexing].src2_register << endl;
+            }
         }
     }
 
     // This function may not be of any use
     /************************** Add_Modified_Source_Registers ***************************
      * Adds the renamed register values                                                 *
+     * Type of register:
+     *              0: Dest
+     *              1: SRC1
+     *              2: SRC2
      * Returns:                                                                         *
      *          Nothing                                                                 *
      ********************* End Add_Modified_Source_Registers ****************************/
-    void Add_Modified_Source_Registers(unsigned int indexing, int dests, int srcs1, int srcs2)
+    void Add_Modified_Source_Registers(unsigned int indexing, int type_of_register, int reg_value)
     {
-        Pipeline_Registers[indexing].renamed_dest = dests;
-        Pipeline_Registers[indexing].renamed_src1 = srcs1;
-        Pipeline_Registers[indexing].renamed_src2 = srcs2;
+        if (type_of_register == 0)
+        {
+            Pipeline_Registers[indexing].renamed_dest = reg_value;
+        }
+        else if (type_of_register == 1)
+        {
+            Pipeline_Registers[indexing].renamed_src1 = reg_value;
+        }
+        else if (type_of_register == 2)
+        {
+            Pipeline_Registers[indexing].renamed_src2 = reg_value;
+        }
     }
 
     vector<Instruction_Structure> Search_for_Completed_Instructions()
@@ -879,8 +897,8 @@ public:
                 {
                     to_be_returned.success = 1;
                     to_be_returned.instruction = Pipeline_Registers[indexing];
-                    //cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
-                    //cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
+                    // cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
+                    // cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
                     return to_be_returned;
                 }
             }
@@ -900,8 +918,8 @@ public:
                 {
                     to_be_returned.success = 1;
                     to_be_returned.instruction = Pipeline_Registers[indexing];
-                    //cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
-                    //cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
+                    // cout << "Instruction seq is: " << to_be_returned.instruction.seq_no;
+                    // cout << "Alpha Instruction seq is: " << Pipeline_Registers[indexing].seq_no;
                     return to_be_returned;
                 }
             }
