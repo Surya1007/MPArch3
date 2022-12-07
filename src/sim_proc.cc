@@ -163,9 +163,12 @@ int main(int argc, char *argv[])
                         {
                             completed_instructions.push_back(Removed_Instruction.instruction);
                             registers_to_set_ready.push_back(Removed_Instruction.instruction.renamed_dest);
-
+                            total_no_retired_instructions++;
                             if (DEBUG == 1)
+                            {
+                                cout << "Totlal number of retired instructions: " << total_no_retired_instructions << endl;
                                 cout << "Broadcasting: Here: " << Removed_Instruction.instruction.renamed_dest << endl;
+                            }
                             no_of_retired_instructions++;
                             // Need to verify
                             if (Removed_Instruction.instruction.dest_register != -1)
@@ -177,6 +180,7 @@ int main(int argc, char *argv[])
                                     Rename_Map_Table_controller.Reset_Rob_Tag_in_RMT(Removed_Instruction.instruction.dest_register);
                                 }
                             }
+
                             bool incremented_tail = ROB_controller.Remove_Instruction_from_ROB();
                             if ((incremented_tail != 1) && (DEBUG == 1))
                             {
@@ -216,7 +220,6 @@ int main(int argc, char *argv[])
                      << "} WB{" << completed_instructions[indexing].time_info.start_time_at_each_stage[7] << "," << completed_instructions[indexing].time_info.duration_at_each_stage[7]
                      << "} RT{" << completed_instructions[indexing].time_info.start_time_at_each_stage[8] << "," << completed_instructions[indexing].time_info.duration_at_each_stage[8]
                      << "}" << endl;
-                total_no_retired_instructions++;
             }
         }
         /******************************************* END RETIRE *****************************************************/
@@ -343,7 +346,11 @@ int main(int argc, char *argv[])
             {
                 DI.Set_Renamed_Register_Ready(registers_to_set_ready);
             }
-
+            if(DEBUG == 1)
+            {
+                cout << "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT" << endl;
+                cout << "IQ are: " << IS.Get_Availability_of_Pipeline() << ", and " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
+            }
             if ((IS.Get_Availability_of_Pipeline() >= params.width) && (IQ_controller.Get_No_Available_Elements_in_IQ() >= params.width)) // Essentially both should have the same size
             {
                 to_IS = DI.Get_and_Remove_Instructions_from_Register();
@@ -448,7 +455,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 RR.Add_Instructions_to_Register(to_RR, sim_time);
-                //cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
+                // cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
                 if (registers_to_set_ready.size() != 0)
                 {
                     RR.Set_Renamed_Register_Ready(registers_to_set_ready);
@@ -526,9 +533,10 @@ int main(int argc, char *argv[])
         if (DEBUG == 1)
         {
             cout << "No problem at " << ROB_controller.Get_Availability_in_ROB() << endl;
+            cout << "DI availability is: " << DI.Get_Status_of_Pipeline() << endl;
             cout << "RR availability is: " << RR.Get_Status_of_Pipeline() << endl;
             cout << "RN availability is: " << RN.Get_Status_of_Pipeline() << endl;
-            cout << "DI availability is: " << DI.Get_Status_of_Pipeline() << endl;
+            cout << "DE availability is: " << DE.Get_Status_of_Pipeline() << endl;
             // cout << "RR availability is: " << RR.Get_Availability_of_Pipeline() << endl;
         }
         /********************************************* END TEST *****************************************************/
@@ -536,7 +544,23 @@ int main(int argc, char *argv[])
         unsigned int rob_tail = ROB_controller.Get_Tail_from_ROB();
         unsigned int to_be_remove_seq = ROB_controller.Get_SEQ_from_ROB(rob_tail);
         Selective_Removal_Struct Removal_Status = RT.Search_Specific_Register_using_seq(to_be_remove_seq);
-        if (Removal_Status.success == 1)
+        //(IQ_controller.Get_No_Available_Elements_in_IQ() == 0)
+        // The need to stall
+
+        if (DEBUG == 1)
+        {
+            cout << "RT are: " << RT.Get_Availability_of_Pipeline() << endl;
+            cout << "WB are: " << WB.Get_Availability_of_Pipeline() << endl;
+            cout << "EX are: " << EX.Get_Availability_of_Pipeline() << endl;
+            cout << "IQ are: " << IS.Get_Availability_of_Pipeline() << ", and " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
+            cout << "DI are: " << DI.Get_Availability_of_Pipeline() << endl;
+            cout << "RR are: " << RR.Get_Availability_of_Pipeline() << endl;
+            cout << "RN are: " << RN.Get_Availability_of_Pipeline() << endl;
+            cout << "DE are: " << DE.Get_Availability_of_Pipeline() << endl;
+            cout << "ROB are: " << ROB_controller.Get_Availability_in_ROB() << endl;
+        }
+
+        if ((Removal_Status.success == 1))
         {
             if (DEBUG == 1)
                 cout << "Can Fetch" << endl;
@@ -549,15 +573,20 @@ int main(int argc, char *argv[])
             ready_to_retire = 0;
         }
 
-        if ((ready_to_retire == 0) && (ROB_controller.Get_Availability_in_ROB() == 0))
+        if (ready_to_retire == 0)
         {
-            STALL = 1;
+            if ((ROB_controller.Get_Availability_in_ROB() == 0))
+                STALL = 1;
         }
         else
         {
             STALL = 0;
         }
 
+        if ((IQ_controller.Get_No_Available_Elements_in_IQ() == 0) && (RN.Get_Availability_of_Pipeline() == (0)))
+        {
+            STALL = 1;
+        }
         if ((STALL != 1))
         {
             uint8_t fetched_count = 0;
@@ -604,11 +633,11 @@ int main(int argc, char *argv[])
         /************************************ Advance cycle calculation ************************************/
         // Increments the simulation time
         ++sim_time;
-        if (trace_no >= 9999)
+        if (trace_no >= 10000)
         {
             fetched_all_instructions = 1;
         }
-        // cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
+        //cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
         //  Check if simulation is completed
         if ((total_no_retired_instructions >= 10000) && (fetched_all_instructions == 1))
         {
@@ -616,9 +645,10 @@ int main(int argc, char *argv[])
         }
         /********************************* End Advance cycle calculation ***********************************/
     } while (continue_sim);
+    sim_time -= 1;
 
     /******************************************* Final Output *********************************************/
-    printf("\n# === Simulator Command =========");
+    printf("# === Simulator Command =========");
     printf("\n# ./sim %lu %lu %lu %s", params.rob_size, params.iq_size, params.width, trace_file);
     printf("\n# === Processor Configuration ===");
     printf("\n# ROB_SIZE = %lu", params.rob_size);
@@ -627,7 +657,7 @@ int main(int argc, char *argv[])
     printf("\n# === Simulation Results ========");
     printf("\n# Dynamic Instruction Count    = %d", total_no_retired_instructions);
     printf("\n# Cycles                       = %d", sim_time);
-    printf("\n# Instructions Per Cycle (IPC) = %.4f%%\n", (((double)total_no_retired_instructions) / ((double)sim_time)));
+    printf("\n# Instructions Per Cycle (IPC) = %.2f%%\n", (((double)total_no_retired_instructions) / ((double)sim_time)));
     /**************************************** Final Output Ends *******************************************/
     return 0;
 }
