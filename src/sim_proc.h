@@ -286,7 +286,7 @@ public:
         ;
     }
 
-    std::vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution, unsigned int pipe_line_width)
+    vector<Selective_Removal_Struct> Query_for_Oldest_Instructions_from_IQ(unsigned int available_execution, unsigned int pipe_line_width)
     {
         std::vector<Selective_Removal_Struct> Instructions_to_be_returned;
         // Can only add instructions of size size_to_get

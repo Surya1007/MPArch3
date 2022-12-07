@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     Pipeline_Stage_Operator IS(params.iq_size, 5); // Concerned part
     Pipeline_Stage_Operator EX(params.width * 5, 6);
     Pipeline_Stage_Operator WB(params.width * 5, 7);
-    Pipeline_Stage_Operator RT(params.width * 50, 8); // May require change
+    Pipeline_Stage_Operator RT(params.rob_size, 8); // May require change
 
     vector<Instruction_Structure> to_FE;
     vector<Instruction_Structure> to_DE;
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 
     /* Initialization simulation environment */
     // bool empty_stage = 1;
-    bool DEBUG = 0;
+    bool DEBUG = 1;
     // bool unsuccessfull_rename = 0;
     //  Instruction Trace file number
     unsigned int trace_no = 0;
@@ -117,28 +117,12 @@ int main(int argc, char *argv[])
     do
     {
         registers_to_set_ready.clear();
-        if (DEBUG == 1)
-            cout << "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH" << endl;
-        if (DEBUG == 1)
-        {
-            cout << "****************************************************************************************************************************" << endl;
-            cout << "Sim time: " << sim_time << endl;
-            cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-            Rename_Map_Table_controller.Print_RMT();
-            cout << "?????????????????????????????????????????????????????????????????????????" << endl;
-            IQ_controller.Print_IQ();
-            cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
-            ROB_controller.Print_ROB();
-            cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-            cout << "Available elements in EX: " << EX.Get_Just_Availability() << endl;
-            cout << "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
-        }
 
         /********************************************** RETIRE ******************************************************/
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if ((RT.Get_Availability_of_Pipeline() != (params.width * 50)) && (ROB_controller.Get_Availability_in_ROB() != params.rob_size))
+        if ((RT.Get_Availability_of_Pipeline() != (params.rob_size)) && (ROB_controller.Get_Availability_in_ROB() != params.rob_size))
         {
             completed_instructions.clear();
             unsigned int no_of_retired_instructions = 0;
@@ -228,7 +212,7 @@ int main(int argc, char *argv[])
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if (WB.Get_Availability_of_Pipeline() != (params.width * 50))
+        if (WB.Get_Availability_of_Pipeline() != (params.width * 5))
         {
             to_RT = WB.Get_and_Remove_Instructions_from_Register();
             if (to_RT.size() != 0)
@@ -299,7 +283,7 @@ int main(int argc, char *argv[])
             }
             vector<Selective_Removal_Struct> temp_to_EX;
             // Checking if there is any available slot in EX
-            if (EX.Get_Availability_of_Pipeline() != 0)
+            if (EX.Get_Availability_of_Pipeline() >= params.width)
             {
                 to_EX.clear();
                 // Find the instructions that are ready to execute
@@ -346,7 +330,7 @@ int main(int argc, char *argv[])
             {
                 DI.Set_Renamed_Register_Ready(registers_to_set_ready);
             }
-            if(DEBUG == 1)
+            if (DEBUG == 1)
             {
                 cout << "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT" << endl;
                 cout << "IQ are: " << IS.Get_Availability_of_Pipeline() << ", and " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
@@ -456,9 +440,9 @@ int main(int argc, char *argv[])
                 }
                 RR.Add_Instructions_to_Register(to_RR, sim_time);
                 // cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
-                if (registers_to_set_ready.size() != 0)
+                //if (registers_to_set_ready.size() != 0)
                 {
-                    RR.Set_Renamed_Register_Ready(registers_to_set_ready);
+                //    RR.Set_Renamed_Register_Ready(registers_to_set_ready);
                 }
                 for (unsigned int indexing = 0; indexing < to_RR.size(); indexing++)
                     RR.Set_Ready_to_Move_Instruction(to_RR[indexing].seq_no);
@@ -494,6 +478,10 @@ int main(int argc, char *argv[])
                 for (unsigned int indexing = 0; indexing < to_RN.size(); indexing++)
                     RN.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
             }
+        }
+        else
+        {
+            cout << "What heppen" << endl;
         }
         if (DEBUG == 1)
         {
@@ -541,52 +529,117 @@ int main(int argc, char *argv[])
         }
         /********************************************* END TEST *****************************************************/
 
-        unsigned int rob_tail = ROB_controller.Get_Tail_from_ROB();
-        unsigned int to_be_remove_seq = ROB_controller.Get_SEQ_from_ROB(rob_tail);
-        Selective_Removal_Struct Removal_Status = RT.Search_Specific_Register_using_seq(to_be_remove_seq);
-        //(IQ_controller.Get_No_Available_Elements_in_IQ() == 0)
-        // The need to stall
-
         if (DEBUG == 1)
         {
             cout << "RT are: " << RT.Get_Availability_of_Pipeline() << endl;
             cout << "WB are: " << WB.Get_Availability_of_Pipeline() << endl;
             cout << "EX are: " << EX.Get_Availability_of_Pipeline() << endl;
             cout << "IQ are: " << IS.Get_Availability_of_Pipeline() << ", and " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
-            cout << "DI are: " << DI.Get_Availability_of_Pipeline() << endl;
-            cout << "RR are: " << RR.Get_Availability_of_Pipeline() << endl;
-            cout << "RN are: " << RN.Get_Availability_of_Pipeline() << endl;
-            cout << "DE are: " << DE.Get_Availability_of_Pipeline() << endl;
+            cout << "DI are: " << DI.Get_Availability_of_Pipeline() << ", whose are: " << DI.Get_Status_of_Pipeline() << endl;
+            cout << "RR are: " << RR.Get_Availability_of_Pipeline() << ", whose are: " << RR.Get_Status_of_Pipeline() << endl;
+            cout << "RN are: " << RN.Get_Availability_of_Pipeline() << ", whose are: " << RN.Get_Status_of_Pipeline() << endl;
+            cout << "DE are: " << DE.Get_Availability_of_Pipeline() << ", whose are: " << DE.Get_Status_of_Pipeline() << endl;
             cout << "ROB are: " << ROB_controller.Get_Availability_in_ROB() << endl;
         }
 
-        if ((Removal_Status.success == 1))
+        unsigned int tot_inst_may_be_removed = 0; // Counts the number of spaces in ROB might be created in the next cycle.
+        bool starting_removed = 0;
+        unsigned int rob_tail = ROB_controller.Get_Tail_from_ROB();
+        unsigned int blocks_to_be_cleared = 0;
+        int search_through = params.width - ROB_controller.Get_Availability_in_ROB();
+        //cout << "Search through is: " << search_through << endl;
+        if (search_through > 0)
         {
-            if (DEBUG == 1)
-                cout << "Can Fetch" << endl;
-            ready_to_retire = 1;
-        }
-        else
-        {
-            if (DEBUG == 1)
-                cout << "No Fetch" << endl;
-            ready_to_retire = 0;
+            for (unsigned int incremented_tail = 0; incremented_tail < (unsigned) search_through; incremented_tail++)
+            {
+                //cout << "Tail is " << rob_tail << endl;
+                unsigned int to_be_remove_seq = ROB_controller.Get_SEQ_from_ROB(rob_tail);
+                Selective_Removal_Struct Removal_Status = RT.Search_Specific_Register_using_seq(to_be_remove_seq);
+                //(IQ_controller.Get_No_Available_Elements_in_IQ() == 0)
+                // The need to stall
+                if ((Removal_Status.success == 1))
+                {
+                    if (incremented_tail == 0)
+                    {
+                        starting_removed = 1;
+                        if (DEBUG == 1)
+                            cout << "Can Fetch" << endl;
+                    }
+                    ready_to_retire = 1;
+                    tot_inst_may_be_removed++;
+                }
+                else
+                {
+                    ready_to_retire = 0;
+                }
+                rob_tail++;
+            }
         }
 
-        if (ready_to_retire == 0)
+        if (DEBUG == 1)
+            cout << "Okay,  " << DE.Get_Availability_of_Pipeline() << " with " << params.width << " and " << (DE.Get_Availability_of_Pipeline() < params.width) << endl;
+
+        //cout << "tot_inst_may_be_removed is " << tot_inst_may_be_removed << ", while: " << params.width << endl;
+        if (tot_inst_may_be_removed < params.width)
         {
-            if ((ROB_controller.Get_Availability_in_ROB() == 0))
+            //cout << "ROB Availability: " << (ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) << endl;
+            // Check if ROB can accomodate new instructions
+            if (((ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) < params.width) || (0))
+            {
                 STALL = 1;
+            }
+            else
+            {
+                STALL = 0;
+            }
         }
         else
         {
             STALL = 0;
         }
+        cout << "Hello " << endl;
 
-        if ((IQ_controller.Get_No_Available_Elements_in_IQ() == 0) && (RN.Get_Availability_of_Pipeline() == (0)))
+        if (STALL == 0)
         {
-            STALL = 1;
+            vector<Selective_Removal_Struct> checking_status = IQ_controller.Query_for_Oldest_Instructions_from_IQ(EX.Get_Availability_of_Pipeline(), params.width);
+            unsigned int to_be_issued_next = 0;
+            if (checking_status.size() != 0)
+            {
+                for (unsigned int indexing = 0; indexing < checking_status.size(); indexing++)
+                {
+                    if (checking_status[indexing].success == 1)
+                    {
+                        to_be_issued_next++;
+                    }
+                }
+            }
+            cout << "IQ Availability: " << IQ_controller.Get_No_Available_Elements_in_IQ() << " and " << (IQ_controller.Get_No_Available_Elements_in_IQ() + to_be_issued_next) << endl;
+            if (DE.Get_Availability_of_Pipeline() != params.width)
+            {
+            if (((IQ_controller.Get_No_Available_Elements_in_IQ() + to_be_issued_next) < params.width))// || (DE.Get_Availability_of_Pipeline() != params.width))
+            {
+                STALL = 1;
+            }
+            else
+            {
+                cout << "Gone jhere " << endl;
+                // Write code here, this is working fine, just tune this
+                if (DE.Get_Availability_of_Pipeline() < params.width)
+                {
+                    cout << "Hmm.... " << endl;
+                    if (RN.Get_Availability_of_Pipeline() < params.width)
+                    {
+                        if ((DI.Get_Status_of_Pipeline() == -1) && (RR.Get_Status_of_Pipeline() == -1) && (RR.Get_Availability_of_Pipeline() == params.width) && (IQ_controller.Get_No_Available_Elements_in_IQ() <= params.width) && (WB.Get_Availability_of_Pipeline() == (params.width)))
+                        {
+                            cout << "Alright" << endl;
+                            STALL = 1;
+                        }
+                    }
+                }
+            }
+            }
         }
+
         if ((STALL != 1))
         {
             uint8_t fetched_count = 0;
@@ -630,6 +683,22 @@ int main(int argc, char *argv[])
         DE.Increment_Time();
         FE.Increment_Time();
 
+        if (DEBUG == 1)
+            cout << "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH" << endl;
+        if (DEBUG == 1)
+        {
+            cout << "****************************************************************************************************************************" << endl;
+            cout << "Sim time: " << sim_time << endl;
+            cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+            Rename_Map_Table_controller.Print_RMT();
+            cout << "?????????????????????????????????????????????????????????????????????????" << endl;
+            IQ_controller.Print_IQ();
+            cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
+            ROB_controller.Print_ROB();
+            cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+            cout << "Available elements in EX: " << EX.Get_Just_Availability() << endl;
+            cout << "Available elements in IQ: " << IQ_controller.Get_No_Available_Elements_in_IQ() << endl;
+        }
         /************************************ Advance cycle calculation ************************************/
         // Increments the simulation time
         ++sim_time;
@@ -637,8 +706,8 @@ int main(int argc, char *argv[])
         {
             fetched_all_instructions = 1;
         }
-        //cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
-        //  Check if simulation is completed
+        // cout << "TRACENO is : " << trace_no << ", while " << total_no_retired_instructions << endl;
+        //   Check if simulation is completed
         if ((total_no_retired_instructions >= 10000) && (fetched_all_instructions == 1))
         {
             continue_sim = 0;
