@@ -510,33 +510,6 @@ int main(int argc, char *argv[])
         }
         /******************************************* END DECODE *****************************************************/
 
-        /********************************************** FETCH ******************************************************/
-        /*********************************************** TEST *******************************************************/
-
-        /********************************************* END TEST *****************************************************/
-        if ((starting != 1) && (FE.Get_Availability_of_Pipeline() != params.width))
-        {
-            if ((DE.Get_Availability_of_Pipeline() == params.width) || (fetched_all_instructions == 1))
-            {
-                to_DE = FE.Get_and_Remove_Instructions_from_Register();
-                DE.Add_Instructions_to_Register(to_DE, sim_time);
-                if (to_DE.size() != 0)
-                {
-                    for (unsigned int indexing = 0; indexing < to_DE.size(); indexing++)
-                        DE.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
-                }
-            }
-            else
-            {
-                // STALL = 1;
-            }
-        }
-        if (DEBUG == 1)
-        {
-            cout << "Decode Stage: " << endl;
-            DE.Print_Instructions_in_Register();
-        }
-        /******************************************* END FETCH *****************************************************/
         /*********************************************** TEST *******************************************************/
         if (DEBUG == 1)
         {
@@ -618,7 +591,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        if ((STALL != 1))
+        /********************************************** FETCH ******************************************************/
+        /*********************************************** TEST *******************************************************/
+
+        /********************************************* END TEST *****************************************************/
+        cout << "Hola" << endl;
+        if ((DE.Get_Availability_of_Pipeline() == params.width) && (fetched_all_instructions != 1))
         {
             uint8_t fetched_count = 0;
             while (fetched_count < params.width)
@@ -632,7 +610,6 @@ int main(int argc, char *argv[])
                     // Need to add to the fetch stage
                     starting = 0;
                     trace_no++;
-
                     // testing = 0;
                 }
                 else
@@ -641,19 +618,31 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-            if (fetched_all_instructions != 1)
+
+            FE.Add_Instructions_to_Register(to_FE, sim_time - 1);
+            FE.Increment_Time();
+            for (unsigned int indexing = 0; indexing < to_FE.size(); indexing++)
+                FE.Set_Ready_to_Move_Instruction(to_FE[indexing].seq_no);
+            to_FE.clear();
+
+            to_DE = FE.Get_and_Remove_Instructions_from_Register();
+            DE.Add_Instructions_to_Register(to_DE, sim_time);
+            if (to_DE.size() != 0)
             {
-                FE.Add_Instructions_to_Register(to_FE, sim_time);
-                for (unsigned int indexing = 0; indexing < to_FE.size(); indexing++)
-                    FE.Set_Ready_to_Move_Instruction(to_FE[indexing].seq_no);
-                to_FE.clear();
+                for (unsigned int indexing = 0; indexing < to_DE.size(); indexing++)
+                    DE.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
             }
+        }
+        else
+        {
+            // STALL = 1;
         }
         if (DEBUG == 1)
         {
-            cout << "Fetch Stage: " << endl;
-            FE.Print_Instructions_in_Register();
+            cout << "Decode Stage: " << endl;
+            DE.Print_Instructions_in_Register();
         }
+        /******************************************* END FETCH *****************************************************/
 
         RT.Increment_Time();
         WB.Increment_Time();
@@ -663,7 +652,6 @@ int main(int argc, char *argv[])
         RR.Increment_Time();
         RN.Increment_Time();
         DE.Increment_Time();
-        FE.Increment_Time();
 
         if (DEBUG == 1)
         {
