@@ -81,13 +81,14 @@ int main(int argc, char *argv[])
     //  Instruction Trace file number
     unsigned int trace_no = 0;
     // Simulation time
-    unsigned int sim_time = 0;
+    unsigned int sim_time = 1;
     // Counts the total number of retired instructions
     unsigned int total_no_retired_instructions = 0;
     // Deciding Variable to let the program know if all instructions are completed
     bool continue_sim = 1;
     // Fetched all instructions from the file
     bool fetched_all_instructions = 0;
+    bool unable_to_rename = 0;
     // There is no instruction in all stages of the pipeline
 
     // Variable to stall the previous pipeline stage
@@ -220,7 +221,8 @@ int main(int argc, char *argv[])
                 // Mark the ready bit in ROB for all instructions entering RT
                 for (unsigned int indexing = 0; indexing < to_RT.size(); indexing++)
                 {
-                    // cout << "Marked: " << to_RT[indexing].seq_no << endl;
+                    if (DEBUG == 1)
+                        cout << "Marked: " << to_RT[indexing].seq_no << " with renamed dest: " << to_RT[indexing].renamed_dest << endl;
                     ROB_controller.Mark_Instruction_Ready(to_RT[indexing].renamed_dest);
                     registers_to_set_ready.push_back(to_RT[indexing].renamed_dest);
                     // May or may not be required
@@ -263,6 +265,17 @@ int main(int argc, char *argv[])
                     // Notify registers in RR
                 }
             }
+
+            // Trying
+            // vector<Instruction_Structure> temp = EX.Search_for_Almost_Completed_Instructions();
+            // if (temp.size() != 0)
+            {
+                //    for(unsigned int indexing = 0; indexing < temp.size(); indexing++)
+                {
+                    //        IQ_controller.Set_SRC_Ready_Bit(temp[indexing].renamed_dest);
+                }
+            }
+            // Trying
         }
         if (DEBUG == 1)
         {
@@ -323,7 +336,7 @@ int main(int argc, char *argv[])
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if (DI.Get_Status_of_Pipeline() == params.width)
+        if (DI.Get_Availability_of_Pipeline() < params.width)
         {
 
             if (registers_to_set_ready.size() != 0)
@@ -340,6 +353,7 @@ int main(int argc, char *argv[])
                 to_IS = DI.Get_and_Remove_Instructions_from_Register();
                 for (unsigned int indexing = 0; indexing < to_IS.size(); indexing++)
                 {
+                    // cout << "Added instruction: " << to_IS[indexing].seq_no << " to IQ" << endl;
                     IQ_controller.Add_Instruction_to_IQ(to_IS[indexing]);
                 }
                 IS.Add_Instructions_to_Register(to_IS, sim_time);
@@ -363,8 +377,11 @@ int main(int argc, char *argv[])
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if (RR.Get_Status_of_Pipeline() == params.width)
+        // cout << "RR status is " << RR.Get_Status_of_Pipeline() << " also, " << DI.Get_Availability_of_Pipeline() << endl;
+
+        if (RR.Get_Availability_of_Pipeline() < params.width)
         {
+            // cout << "Hey" << endl;
             if (registers_to_set_ready.size() != 0)
             {
                 RR.Set_Renamed_Register_Ready(registers_to_set_ready);
@@ -382,7 +399,7 @@ int main(int argc, char *argv[])
                     DI.Set_Ready_to_Move_Instruction(to_DI[indexing].seq_no);
             }
         }
-        else
+        // else
         {
             // cout << "Yallaa" << endl;
             // STALL = 1;
@@ -398,7 +415,7 @@ int main(int argc, char *argv[])
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if (RN.Get_Status_of_Pipeline() == params.width)
+        if (RN.Get_Availability_of_Pipeline() < params.width)
         {
             if ((RR.Get_Availability_of_Pipeline() == params.width) && (ROB_controller.Get_Availability_in_ROB() >= params.width)) // May need to be changed for last batch
             {
@@ -437,6 +454,7 @@ int main(int argc, char *argv[])
                     {
                         Rename_Map_Table_controller.Set_Rob_Tag_in_RMT(to_RR[indexing].dest_register, rob_header);
                     }
+                    unable_to_rename = 0;
                 }
                 RR.Add_Instructions_to_Register(to_RR, sim_time);
                 // cout << "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP" << endl;
@@ -450,8 +468,14 @@ int main(int argc, char *argv[])
             }
             else
             {
+                unable_to_rename = 1;
+                STALL = 1;
                 // cout << "Koun" << endl;
             }
+        }
+        // else
+        {
+            //    STALL = 1;
         }
         if (DEBUG == 1)
         {
@@ -465,7 +489,7 @@ int main(int argc, char *argv[])
         /*********************************************** TEST *******************************************************/
 
         /********************************************* END TEST *****************************************************/
-        if ((DE.Get_Status_of_Pipeline() == params.width)) // May need to be changed for superscalar or not :P
+        if ((DE.Get_Availability_of_Pipeline() < params.width)) // May need to be changed for superscalar or not :P
         {
             if ((RN.Get_Availability_of_Pipeline() == params.width))
             {
@@ -478,10 +502,6 @@ int main(int argc, char *argv[])
                 for (unsigned int indexing = 0; indexing < to_RN.size(); indexing++)
                     RN.Set_Ready_to_Move_Instruction(to_DE[indexing].seq_no);
             }
-        }
-        else
-        {
-            cout << "What heppen" << endl;
         }
         if (DEBUG == 1)
         {
@@ -508,7 +528,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                STALL = 1;
+                // STALL = 1;
             }
         }
         if (DEBUG == 1)
@@ -547,7 +567,8 @@ int main(int argc, char *argv[])
         unsigned int rob_tail = ROB_controller.Get_Tail_from_ROB();
         unsigned int blocks_to_be_cleared = 0;
         int search_through = params.width - ROB_controller.Get_Availability_in_ROB();
-        // cout << "Search through is: " << search_through << endl;
+
+        cout << "Search through is: " << search_through << endl;
         if (search_through > 0)
         {
             for (unsigned int incremented_tail = 0; incremented_tail < (unsigned)search_through; incremented_tail++)
@@ -574,73 +595,26 @@ int main(int argc, char *argv[])
                 }
                 rob_tail++;
             }
-        }
 
-        // cout << "tot_inst_may_be_removed is " << tot_inst_may_be_removed << ", while: " << params.width << endl;
-        if (tot_inst_may_be_removed < params.width)
-        {
-            // cout << "ROB Availability: " << (ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) << endl;
-            //  Check if ROB can accomodate new instructions
-            if (((ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) < params.width))
+            if (DEBUG == 1)
+                cout << "ROB Availability: " << (ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) << endl;
+
+            if ((starting_removed == 1)) // && (starting != 1))
             {
-                // if ((DI.Get_Availability_of_Pipeline() == params.width) && (RR.Get_Availability_of_Pipeline() == params.width))
-                STALL = 1;
+                if (((ROB_controller.Get_Availability_in_ROB() + tot_inst_may_be_removed) < params.width))
+                {
+                    if (DEBUG == 1)
+                        cout << "Stalling here" << endl;
+                    STALL = 1;
+                }
+                else
+                {
+                    STALL = 0;
+                }
             }
             else
             {
-                STALL = 0;
-            }
-        }
-        else
-        {
-            STALL = 0;
-        }
-        cout << "Hello " << endl;
-
-        if (STALL == 0)
-        {
-            vector<Selective_Removal_Struct> checking_status = IQ_controller.Query_for_Oldest_Instructions_from_IQ(EX.Get_Availability_of_Pipeline(), params.width);
-            unsigned int to_be_issued_next = 0;
-            if (checking_status.size() != 0)
-            {
-                for (unsigned int indexing = 0; indexing < checking_status.size(); indexing++)
-                {
-                    cout << "Index is " << indexing << endl;
-                    if (checking_status[indexing].success == 1)
-                    {
-                        to_be_issued_next++;
-                    }
-                }
-            }
-            if ((DE.Get_Availability_of_Pipeline() != params.width) && (ROB_controller.Get_Availability_in_ROB() != 0)) 
-            {
-                cout << "Moshi moshi" << endl;
-                cout << "IQ Availability: " << IQ_controller.Get_No_Available_Elements_in_IQ() << " and " << (IQ_controller.Get_No_Available_Elements_in_IQ() + to_be_issued_next) << endl;
-                if ((RN.Get_Availability_of_Pipeline() < params.width) && (RR.Get_Availability_of_Pipeline() < params.width))
-                {
-                    if (((IQ_controller.Get_No_Available_Elements_in_IQ() + to_be_issued_next) < params.width)) // && (RN.Get_Availability_of_Pipeline() == params.width))
-                    {
-                        if (DI.Get_Availability_of_Pipeline() != params.width)
-                        {
-                            cout << "Stalling " << endl;
-                            STALL = 1;
-                        }
-                    }
-                    else
-                    {
-                        cout << "Gone jhere " << endl;
-                        // Write code here, this is working fine, just tune this
-                        if (DE.Get_Availability_of_Pipeline() < params.width)
-                        {
-                            cout << "Hmm.... " << endl;
-                            if ((DI.Get_Status_of_Pipeline() == -1) && (RR.Get_Status_of_Pipeline() == -1) && (RR.Get_Availability_of_Pipeline() == params.width) && (IQ_controller.Get_No_Available_Elements_in_IQ() <= params.width) && (WB.Get_Availability_of_Pipeline() == (params.width)))
-                            {
-                                cout << "Alright" << endl;
-                                STALL = 1;
-                            }
-                        }
-                    }
-                }
+                STALL = 1;
             }
         }
 
@@ -656,12 +630,9 @@ int main(int argc, char *argv[])
                     if (DEBUG == 1)
                         printf("Fetched: %d, %lx %d %d %d %d\n", trace_no, pc, op_type, dest, src1, src2); // Print to check if inputs have been read correctly
                     // Need to add to the fetch stage
-                    FE.Add_Instructions_to_Register(to_FE, sim_time);
-                    for (unsigned int indexing = 0; indexing < to_FE.size(); indexing++)
-                        FE.Set_Ready_to_Move_Instruction(to_FE[indexing].seq_no);
                     starting = 0;
-                    to_FE.clear();
                     trace_no++;
+
                     // testing = 0;
                 }
                 else
@@ -669,6 +640,13 @@ int main(int argc, char *argv[])
                     fetched_all_instructions = 1;
                     break;
                 }
+            }
+            if (fetched_all_instructions != 1)
+            {
+                FE.Add_Instructions_to_Register(to_FE, sim_time);
+                for (unsigned int indexing = 0; indexing < to_FE.size(); indexing++)
+                    FE.Set_Ready_to_Move_Instruction(to_FE[indexing].seq_no);
+                to_FE.clear();
             }
         }
         if (DEBUG == 1)

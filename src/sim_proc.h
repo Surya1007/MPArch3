@@ -176,7 +176,7 @@ public:
 
     void Print_IQ()
     {
-        cout << "Issue Queue" << endl;
+        cout << "Issue Queue: " << available_iq_elements << endl;
         cout << "SEQNO\tDST\tRS1RDY\tRS1\tRS2RDY\tRS2" << endl;
         for (unsigned int indexing = 0; indexing < issue_queue_size; indexing++)
         {
@@ -262,8 +262,8 @@ public:
                 }
                 if (found != 1)
                 {
-                    //cout << "FOre seq no: " << issue_queue[indexing].instruction.seq_no << ", and Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
-                    //  Checking if both the src registers are ready
+                    // cout << "FOre seq no: " << issue_queue[indexing].instruction.seq_no << ", and Checking ready bits, " << issue_queue[indexing].src1_ready_bit << ", while" << issue_queue[indexing].src2_ready_bit << endl;
+                    //   Checking if both the src registers are ready
                     if ((issue_queue[indexing].src1_ready_bit == 1) && (issue_queue[indexing].src2_ready_bit == 1))
                     {
                         // Finding the index of instruction that is the oldest in the IQ
@@ -360,8 +360,8 @@ public:
             // Set the ready bits of only that are valid
             if (issue_queue[indexing].valid_bit == 1)
             {
-                //cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
-                //  Sets the src1 ready bit if the renamed register is src_register
+                // cout << "SRCs: " << issue_queue[indexing].instruction.renamed_src1 << " with: " << issue_queue[indexing].instruction.renamed_src2 << endl;
+                //   Sets the src1 ready bit if the renamed register is src_register
                 if (issue_queue[indexing].instruction.renamed_src1 == src_register)
                 {
                     issue_queue[indexing].src1_ready_bit = 1;
@@ -592,7 +592,9 @@ public:
     {
         unsigned int no_of_added_elements = 0;
         // Check if all instructions can be added at once or not
-        if (instruction_to_be_added.size() <= available_elements_in_stage_count)
+        cout << "Here" << endl;
+        cout << "Maybe " << instruction_to_be_added.size() << ", and " << available_elements_in_stage_count;
+        if ((instruction_to_be_added.size() <= available_elements_in_stage_count))
         {
             for (unsigned int indexing = 0; indexing < pipeline_width; indexing++)
             {
@@ -614,6 +616,11 @@ public:
                 if (no_of_added_elements == instruction_to_be_added.size())
                 {
                     break;
+                }
+                cout << "Indexing, " << indexing << ", and " << instruction_to_be_added.size() << endl;
+                // if (indexing > instruction_to_be_added.size())
+                {
+                    //    break;
                 }
             }
             return 0;
@@ -662,7 +669,7 @@ public:
             {
                 if (available_elements_in_stage[indexing] == 0)
                 {
-                    //cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
+                    // cout << "Trying to set: " << ready_registers[sub_indexing] << " with: " << Pipeline_Registers[indexing].renamed_src1 << ", " << Pipeline_Registers[indexing].renamed_src2 << endl;
                     if (Pipeline_Registers[indexing].renamed_src1 == ready_registers[sub_indexing])
                     {
                         // cout << "Good1" << endl;
@@ -992,7 +999,7 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 0)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            //ready_to_move[indexing] = 1;
+                            // ready_to_move[indexing] = 1;
                         }
                     }
                     else if (Pipeline_Registers[indexing].op_type == 1)
@@ -1000,7 +1007,7 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 1)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            //ready_to_move[indexing] = 1;
+                            // ready_to_move[indexing] = 1;
                         }
                     }
                     else // if (Pipeline_Registers[indexing].op_type == 2)
@@ -1009,8 +1016,8 @@ public:
                         if (Pipeline_Registers[indexing].time_info.duration_at_each_stage[pipeline_stage] == 4)
                         {
                             to_be_returned.push_back(Pipeline_Registers[indexing]);
-                            //ready_to_move[indexing] = 1;
-                            // cout << "Setting" << endl;
+                            // ready_to_move[indexing] = 1;
+                            //  cout << "Setting" << endl;
                         }
                     }
                 }
